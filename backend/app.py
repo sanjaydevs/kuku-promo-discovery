@@ -4,6 +4,7 @@ import streamlit as st
 import pandas as pd
 
 from core.pipeline import process_episodes
+from core.ranker import rank_all_episodes, rank_top_per_episode
 
 
 st.set_page_config(
@@ -64,6 +65,57 @@ if "pipeline_results" in st.session_state:
 
     st.divider()
     st.header("Discovery Results")
+    
+    
+    
+    st.subheader("Overall Promo Posting Priority")
+
+    ranking_mode = st.radio(
+        "Ranking mode",
+        options=[
+            "All discovered promos",
+            "Top promo from each episode"
+        ],
+        horizontal=True,
+        key="ranking_mode"
+    )
+
+    if ranking_mode == "All discovered promos":
+        global_ranking = rank_all_episodes(results)
+    else:
+        global_ranking = rank_top_per_episode(results)
+
+    st.session_state["global_ranking"] = global_ranking
+
+    if global_ranking:
+        global_table = []
+
+        for candidate in global_ranking:
+            global_table.append({
+                "Global Rank": candidate["global_rank"],
+                "Episode": candidate["episode_number"],
+                "Candidate": candidate["candidate_id"],
+                "Start": candidate["start_timestamp"],
+                "End": candidate["end_timestamp"],
+                "Creative Score": candidate["weighted_score"],
+                "Global Score": candidate.get(
+                    "global_score",
+                    candidate["adjusted_score"]
+                ),
+                "Redundancy Penalty": candidate.get(
+                    "global_redundancy_penalty",
+                    candidate["redundancy_penalty"]
+                ),
+            })
+
+        st.dataframe(
+            pd.DataFrame(global_table),
+            use_container_width=True,
+            hide_index=True
+        )
+    else:
+        st.info("No promotional candidates available.")
+
 
     successful_results = [
         result for result in results if result["success"]

@@ -219,3 +219,49 @@ def rank_all_episodes(episode_results, max_promos=None):
         candidate["global_rank"] = index
 
     return selected
+
+
+def rank_top_per_episode(episode_results):
+    """
+    Select the highest-ranked promo from each successful episode
+    and combine them into a global ranking.
+
+    Uses the episode-level adjusted score, which already accounts
+    for redundancy within that episode.
+    """
+
+    top_candidates = []
+
+    for episode_result in episode_results:
+        if not episode_result.get("success"):
+            continue
+
+        ranked_candidates = episode_result.get(
+            "ranked_candidates", []
+        )
+
+        if not ranked_candidates:
+            continue
+
+        # Episode rankings are already sorted by adjusted score.
+        best_candidate = ranked_candidates[0].copy()
+
+        best_candidate["episode_number"] = episode_result.get(
+            "episode_number", "Unknown"
+        )
+
+        top_candidates.append(best_candidate)
+
+    # Rank the selected candidates globally.
+    top_candidates.sort(
+        key=lambda candidate: (
+            candidate["adjusted_score"],
+            candidate["weighted_score"]
+        ),
+        reverse=True
+    )
+
+    for index, candidate in enumerate(top_candidates, start=1):
+        candidate["global_rank"] = index
+
+    return top_candidates
