@@ -1,0 +1,25 @@
+# Python virtual environment
+backend/.venv/
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+# API keys and secrets
+.env
+backend/.env
+
+# Confidential screenplay input
+backend/data/input/*
+!backend/data/input/.gitkeep
+
+# Generated results
+backend/data/outputs/*
+!backend/data/outputs/.gitkeep
+
+# Test cache
+.pytest_cache/
+
+# OS files
+.DS_Store
+Thumbs.db
