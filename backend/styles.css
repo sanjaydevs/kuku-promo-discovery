@@ -432,8 +432,8 @@ hr { border-color: var(--pf-border) !important; }
 
 /* Tighten spacing around the app header */
 .brand-header {
-    margin-top: 0 !important;
-    margin-bottom: 1.5rem !important;
+    margin-top: -2rem !important;
+    margin-bottom: 1.3rem !important;
 }
 
 /* Remove unnecessary top spacing from the first content block */
