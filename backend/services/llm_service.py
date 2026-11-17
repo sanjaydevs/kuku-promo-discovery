@@ -38,7 +38,7 @@ def generate_text(
 
         content = response.text
 
-        elif provider == "openrouter":
+    elif provider == "openrouter":
 
         import time
 
