@@ -277,10 +277,37 @@ left_panel, right_panel = st.columns(
 # ------------------------------------------------------------
 
 with left_panel:
+
     st.markdown(
-        '<div class="panel-title">Start with your episodes</div>',
+        '<div class="panel-title">Upload your episodes</div>',
         unsafe_allow_html=True,
     )
+    
+    uploaded_files = st.file_uploader(
+        "UPLOAD SCREENPLAY FILES",
+        type=["txt"],
+        accept_multiple_files=True,
+        key="screenplay_uploader",
+    )
+
+    if uploaded_files:
+        st.markdown(
+            f"""
+            <div class="upload-count">
+                {len(uploaded_files)} episode(s) ready to process
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+    else:
+        st.markdown(
+            """
+            <div class="upload-hint">
+                Add your episode screenplay files (.txt).
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
     provider_options = {
         "Gemini": "gemini",
@@ -323,33 +350,7 @@ with left_panel:
         """,
         unsafe_allow_html=True,
     )
-
-    uploaded_files = st.file_uploader(
-        "UPLOAD SCREENPLAY FILES",
-        type=["txt"],
-        accept_multiple_files=True,
-        key="screenplay_uploader",
-    )
-
-    if uploaded_files:
-        st.markdown(
-            f"""
-            <div class="upload-count">
-                {len(uploaded_files)} episode(s) ready to process
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-    else:
-        st.markdown(
-            """
-            <div class="upload-hint">
-                Add your episode screenplay files (.txt).
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
+    
     discover_clicked = st.button(
         "DISCOVER PROMOS",
         type="primary",
@@ -424,7 +425,7 @@ with right_panel:
 
     with title_col:
         st.markdown(
-            '<div class="panel-title">Your promo shortlist</div>',
+            '<div class="panel-title">promo shortlist</div>',
             unsafe_allow_html=True,
         )
 
