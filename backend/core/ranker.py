@@ -221,20 +221,22 @@ def rank_all_episodes(episode_results, max_promos=None):
     return selected
 
 
+
 def rank_top_per_episode(episode_results):
     """
-    Select the highest-ranked promo from each successful episode
-    and combine them into a global ranking.
-
-    Uses the episode-level adjusted score, which already accounts
-    for redundancy within that episode.
+    Select exactly one highest-scoring promo per episode,
+    then rank the selected promos globally.
     """
 
-    top_candidates = []
+    best_by_episode = {}
 
     for episode_result in episode_results:
         if not episode_result.get("success"):
             continue
+
+        episode_number = episode_result.get(
+            "episode_number", "Unknown"
+        )
 
         ranked_candidates = episode_result.get(
             "ranked_candidates", []
@@ -243,17 +245,35 @@ def rank_top_per_episode(episode_results):
         if not ranked_candidates:
             continue
 
-        # Episode rankings are already sorted by adjusted score.
-        best_candidate = ranked_candidates[0].copy()
+        # Select the highest adjusted-score candidate.
+        best_candidate = max(
+            ranked_candidates,
+            key=lambda candidate: (
+                candidate.get(
+                    "adjusted_score",
+                    candidate["weighted_score"]
+                ),
+                candidate["weighted_score"]
+            )
+        ).copy()
 
-        best_candidate["episode_number"] = episode_result.get(
-            "episode_number", "Unknown"
-        )
+        best_candidate["episode_number"] = episode_number
 
-        top_candidates.append(best_candidate)
+        # Keep only one candidate for each episode.
+        existing = best_by_episode.get(episode_number)
 
-    # Rank the selected candidates globally.
-    top_candidates.sort(
+        if existing is None or (
+            best_candidate["adjusted_score"],
+            best_candidate["weighted_score"]
+        ) > (
+            existing["adjusted_score"],
+            existing["weighted_score"]
+        ):
+            best_by_episode[episode_number] = best_candidate
+
+    # Combine the selected promos and rank globally.
+    top_candidates = sorted(
+        best_by_episode.values(),
         key=lambda candidate: (
             candidate["adjusted_score"],
             candidate["weighted_score"]

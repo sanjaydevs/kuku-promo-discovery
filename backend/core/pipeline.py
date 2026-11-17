@@ -6,7 +6,7 @@ from core.evaluator import evaluate_promos
 from core.ranker import rank_promos
 
 
-def process_episode(uploaded_file):
+def process_episode(uploaded_file, provider="gemini", model=None):
     """
     Run the complete promo discovery pipeline for one episode.
     """
@@ -26,7 +26,11 @@ def process_episode(uploaded_file):
         }
 
     # Step 3: Discover promo candidates
-    discovery_result = discover_promos(screenplay)
+    discovery_result = discover_promos(
+        screenplay,
+        provider=provider,
+        model=model
+    )
 
     candidates = discovery_result["candidates"]
 
@@ -47,6 +51,8 @@ def process_episode(uploaded_file):
     evaluation_result = evaluate_promos(
         screenplay_data=discovery_result,
         candidates=candidates,
+        provider=provider,
+        model=model
     )
 
     # Step 5: Rank candidates
@@ -66,27 +72,37 @@ def process_episode(uploaded_file):
     }
 
 
-def process_episodes(uploaded_files):
+def process_episodes(uploaded_files, provider="gemini", model=None):
     """
     Process multiple uploaded episode files independently.
-
     A failure in one episode does not stop the remaining episodes.
     """
 
     results = []
 
     for uploaded_file in uploaded_files:
+
         filename = getattr(uploaded_file, "name", str(uploaded_file))
 
         try:
-            result = process_episode(uploaded_file)
+            result = process_episode(
+                uploaded_file,
+                provider=provider,
+                model=model
+            )
+
             result["filename"] = filename
+            result["provider"] = provider
+            result["model"] = model
+
             results.append(result)
 
         except Exception as error:
             results.append({
                 "success": False,
                 "filename": filename,
+                "provider": provider,
+                "model": model,
                 "error": str(error),
             })
 

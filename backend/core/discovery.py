@@ -16,7 +16,7 @@ def timestamp_to_seconds(timestamp):
 def format_screenplay(screenplay):
     """
     Convert the parsed screenplay into a compact,
-    readable representation for Gemini.
+    readable representation for the LLM.
     """
 
     formatted = {
@@ -143,7 +143,6 @@ Return an empty candidates array if no suitable promo exists.
 
 def parse_json_response(response_text):
 
-    # Remove optional Markdown code fences
     cleaned = response_text.strip()
 
     if cleaned.startswith("```"):
@@ -158,12 +157,11 @@ def parse_json_response(response_text):
         return json.loads(cleaned)
 
     except json.JSONDecodeError:
-        # Try extracting the first complete JSON object
         start = cleaned.find("{")
 
         if start == -1:
             raise ValueError(
-                "Gemini did not return a JSON object."
+                "The selected model did not return a JSON object."
             )
 
         try:
@@ -174,14 +172,13 @@ def parse_json_response(response_text):
 
         except json.JSONDecodeError as error:
             raise ValueError(
-                "Could not parse Gemini's JSON response."
+                f"Could not parse the selected model's discovery response: {error}"
             ) from error
 
 
 def validate_candidates(candidates, screenplay_data):
     """
-    Apply basic deterministic checks to AI-generated candidates.
-
+    Apply deterministic checks to AI-generated candidates.
     Invalid candidates are rejected rather than silently corrected.
     """
 
@@ -214,6 +211,18 @@ def validate_candidates(candidates, screenplay_data):
 
             if event["end_timestamp"]:
                 valid_boundaries.add(event["end_timestamp"])
+
+    scene_starts = [
+        scene["start_seconds"]
+        for scene in screenplay_data["scenes"]
+        if scene["start_seconds"] is not None
+    ]
+
+    scene_ends = [
+        scene["end_seconds"]
+        for scene in screenplay_data["scenes"]
+        if scene["end_seconds"] is not None
+    ]
 
     for candidate in candidates:
 
@@ -258,26 +267,12 @@ def validate_candidates(candidates, screenplay_data):
         if end_seconds <= start_seconds:
             reasons.append("End must be after start.")
 
-        # Check that the candidate falls within the episode.
-        scene_starts = [
-            scene["start_seconds"]
-            for scene in screenplay_data["scenes"]
-            if scene["start_seconds"] is not None
-        ]
-
-        scene_ends = [
-            scene["end_seconds"]
-            for scene in screenplay_data["scenes"]
-            if scene["end_seconds"] is not None
-        ]
-
         if scene_starts and start_seconds < min(scene_starts):
             reasons.append("Clip starts before the episode.")
 
         if scene_ends and end_seconds > max(scene_ends):
             reasons.append("Clip ends after the episode.")
 
-        # Recalculate source event IDs from the actual interval.
         actual_event_ids = [
             event["event_id"]
             for event in all_events
@@ -291,7 +286,6 @@ def validate_candidates(candidates, screenplay_data):
 
         if not isinstance(supplied_ids, list):
             reasons.append("source_event_ids must be a list.")
-            supplied_ids = []
 
         elif any(
             not isinstance(event_id, int)
@@ -304,7 +298,10 @@ def validate_candidates(candidates, screenplay_data):
             reasons.append("Clip contains no timestamped source events.")
 
         for field in ("hook", "cliffhanger", "why_it_works"):
-            if not isinstance(candidate.get(field), str) or not candidate[field].strip():
+            if (
+                not isinstance(candidate.get(field), str)
+                or not candidate[field].strip()
+            ):
                 reasons.append(f"Missing or empty field: {field}.")
 
         if reasons:
@@ -322,11 +319,9 @@ def validate_candidates(candidates, screenplay_data):
     return valid_candidates, rejected_candidates
 
 
-def discover_promos(screenplay):
+def discover_promos(screenplay, provider="gemini", model=None):
     """
     Discover continuous promotional clips from one episode.
-
-    Returns valid candidates, rejected candidates and raw AI output.
     """
 
     screenplay_data = format_screenplay(screenplay)
@@ -340,19 +335,23 @@ def discover_promos(screenplay):
             "promotional editing assistant. Follow the requested "
             "JSON output format and never invent source details."
         ),
-        temperature=0.2
+        temperature=0.2,
+        provider=provider,
+        model=model
     )
 
     parsed_response = parse_json_response(raw_response)
 
     if not isinstance(parsed_response, dict):
-        raise ValueError("Gemini response must be a JSON object.")
+        raise ValueError(
+            "Selected model response must be a JSON object."
+        )
 
     candidates = parsed_response.get("candidates")
 
     if not isinstance(candidates, list):
         raise ValueError(
-            "Gemini response does not contain a valid candidates list."
+            "Selected model response does not contain a valid candidates list."
         )
 
     if len(candidates) > 10:
