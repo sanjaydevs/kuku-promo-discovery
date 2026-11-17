@@ -38,7 +38,9 @@ def generate_text(
 
         content = response.text
 
-    elif provider == "openrouter":
+        elif provider == "openrouter":
+
+        import time
 
         client = OpenAI(
             api_key=OPENROUTER_API_KEY,
@@ -60,15 +62,42 @@ def generate_text(
             "content": prompt
         })
 
-        response = client.chat.completions.create(
-            model=model or OPENROUTER_MODEL,
-            messages=messages,
-            temperature=temperature
-        )
+        content = None
 
-        print("OPENROUTER ACTUAL MODEL:", response.model)
-        
-        content = response.choices[0].message.content
+        # Retry once if OpenRouter returns an empty response.
+        for attempt in range(2):
+            response = client.chat.completions.create(
+                model=model or OPENROUTER_MODEL,
+                messages=messages,
+                temperature=temperature,
+                max_tokens=4096
+            )
+
+            choice = response.choices[0] if response.choices else None
+
+            print("OPENROUTER MODEL:", response.model)
+            print("FINISH REASON:", choice.finish_reason if choice else None)
+            print("USAGE:", response.usage)
+
+            content = (
+                choice.message.content
+                if choice and choice.message
+                else None
+            )
+
+            if content and content.strip():
+                break
+
+            print(f"OpenRouter returned empty content. Attempt {attempt + 1}/2")
+
+            if attempt == 0:
+                time.sleep(2)
+
+        if not content or not content.strip():
+            raise RuntimeError(
+                "OpenRouter returned empty content after 2 attempts. "
+                "Check deployment logs for model and finish reason."
+            )
 
     else:
         raise ValueError(f"Unsupported provider: {provider}")

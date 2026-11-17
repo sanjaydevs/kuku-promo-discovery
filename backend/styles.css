@@ -1,24 +1,24 @@
 /* =========================================================
-   PROMO FINDER — BLACK / WHITE / GREEN TYPOGRAPHY
-   Green is used for text accents only. No green fills,
-   gradients, tinted panels, or green button backgrounds.
+   PROMO FINDER — BLACK / WHITE / YELLOW TYPOGRAPHY
+   Yellow is used for text accents only. Neutral surfaces,
+   no gradients, glow, tinted panels, or colored fills.
    ========================================================= */
 
 @import url('https://fonts.googleapis.com/css2?family=Archivo+Black&family=Barlow+Condensed:wght@600;700;800;900&family=Inter:wght@400;500;600;700;800;900&display=swap');
 
 :root {
-    --pf-bg: #080908;
-    --pf-panel: #0d0f0d;
-    --pf-panel-strong: #141614;
+    --pf-bg: #080808;
+    --pf-panel: #0d0d0d;
+    --pf-panel-strong: #141414;
     --pf-text: #f5f6f2;
     --pf-muted: #a3aaa2;
-    --pf-dim: #626b63;
+    --pf-dim: #626262;
 
     /* Green is a text accent only */
-    --pf-accent: #a7e36b;
+    --pf-accent: #ffc900;
 
-    --pf-border: #303630;
-    --pf-border-strong: #485148;
+    --pf-border: #303030;
+    --pf-border-strong: #484848;
 
     --pf-font: "Inter", Arial, sans-serif;
     --pf-heading-font: "Archivo Black", "Arial Black", sans-serif;
@@ -169,7 +169,7 @@ h1, h2, h3, h4 {
     margin-top: 0.35rem;
 }
 [data-testid="stFileUploader"] section {
-    background: #0b0d0b !important;
+    background: #0b0b0b !important;
     border: 1px dashed var(--pf-border-strong) !important;
     border-radius: 0 !important;
     min-height: 118px !important;
@@ -183,22 +183,22 @@ h1, h2, h3, h4 {
     color: var(--pf-muted) !important;
 }
 [data-testid="stFileUploader"] button {
-    background: #171a17 !important;
+    background: #171717 !important;
     color: var(--pf-text) !important;
     border: 1px solid var(--pf-border-strong) !important;
     border-radius: 0 !important;
     box-shadow: none !important;
 }
 [data-testid="stFileUploader"] button:hover {
-    background: #202420 !important;
+    background: #202020 !important;
     color: var(--pf-text) !important;
-    border-color: #687168 !important;
+    border-color: #686868 !important;
 }
 
 /* BUTTONS — neutral fills; green never fills a component */
 .stButton > button,
 .stDownloadButton > button {
-    background: #171a17 !important;
+    background: #171717 !important;
     color: var(--pf-text) !important;
     border: 1px solid var(--pf-border-strong) !important;
     border-radius: 0 !important;
@@ -213,13 +213,13 @@ h1, h2, h3, h4 {
 }
 .stButton > button:hover,
 .stDownloadButton > button:hover {
-    background: #202420 !important;
+    background: #202020 !important;
     color: var(--pf-text) !important;
-    border-color: #687168 !important;
+    border-color: #686868 !important;
 }
 .stButton > button:disabled {
-    background: #171a17 !important;
-    color: #626b63 !important;
+    background: #171717 !important;
+    color: #626262 !important;
     border-color: var(--pf-border) !important;
     opacity: 1;
 }
@@ -396,7 +396,7 @@ hr { border-color: var(--pf-border) !important; }
 }
 .footer-links a:hover {
     color: var(--pf-text);
-    border-color: #687168;
+    border-color: #686868;
 }
 .footer-caption { margin-top: 0.7rem; }
 
