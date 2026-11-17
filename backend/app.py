@@ -17,7 +17,7 @@ BACKEND_DIR = Path(__file__).resolve().parent
 OUTPUT_DIR = BACKEND_DIR / "data" / "outputs"
 OUTPUT_FILE = OUTPUT_DIR / "latest_results.json"
 CSS_FILE = BACKEND_DIR / "styles.css"
-
+FAVICON_PATH = Path(__file__).parent / "favicon.png"
 
 # ============================================================
 # PAGE CONFIGURATION
@@ -25,8 +25,8 @@ CSS_FILE = BACKEND_DIR / "styles.css"
 # ============================================================
 
 st.set_page_config(
-    page_title="Promo Finder",
-    page_icon="🎬",
+    page_title="Promo Finder - By Sanjay",
+    page_icon=str(FAVICON_PATH),
     layout="wide",
     initial_sidebar_state="collapsed",
 )
@@ -420,10 +420,46 @@ successful, failed = get_successful_and_failed(results)
 # ------------------------------------------------------------
 
 with right_panel:
-    st.markdown(
-        '<div class="panel-title">Your promo shortlist</div>',
-        unsafe_allow_html=True,
-    )
+    title_col, clear_col = st.columns([0.78, 0.22])
+
+    with title_col:
+        st.markdown(
+            '<div class="panel-title">Your promo shortlist</div>',
+            unsafe_allow_html=True,
+        )
+
+    with clear_col:
+        if st.button(
+            "CLEAR RESULTS",
+            key="clear_results",
+            use_container_width=True,
+        ):
+            # Clear results from session state
+            st.session_state["pipeline_results"] = []
+
+            # Clear related selections
+            keys_to_clear = [
+                "global_ranking",
+                "selected_global_promo",
+                "ranking_mode",
+                "global_ranking_all",
+                "global_ranking_top",
+                "episode_explorer_selection",
+            ]
+
+            for key in keys_to_clear:
+                st.session_state.pop(key, None)
+
+            # Clear episode-specific table selections
+            for key in list(st.session_state.keys()):
+                if key.startswith("episode_promos_"):
+                    st.session_state.pop(key, None)
+
+            # Delete the saved results file
+            if OUTPUT_FILE.exists():
+                OUTPUT_FILE.unlink()
+
+            st.rerun()
 
     if results:
         total_promos = sum(
