@@ -241,14 +241,20 @@ load_saved_results()
 
 st.markdown(
     """
+    <style>
+        #MainMenu {visibility: hidden;}
+        header {visibility: hidden;}
+        footer {visibility: hidden;}
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
+st.markdown(
+    """
     <div class="brand-header">
         <div class="brand-lockup">
             <div class="brand-name">PROMO FINDER</div>
-            <div class="brand-divider"></div>
-            <div class="brand-tagline">
-                UPLOAD YOUR EPISODES,<br>
-                FIND THE BEST PROMOS.
-            </div>
         </div>
     </div>
     """,
@@ -667,10 +673,10 @@ st.markdown(
         </div>
         <div class="footer-right">
             <div class="footer-links">
-                <a href="https://github.com/"
+                <a href="https://github.com/sanjaydevs/kuku-promo-discovery"
                    target="_blank"
                    rel="noreferrer">GITHUB ↗</a>
-                <a href="https://www.linkedin.com/"
+                <a href="https://www.linkedin.com/in/sanjay-s-74551a2ba/"
                    target="_blank"
                    rel="noreferrer">LINKEDIN ↗</a>
             </div>
