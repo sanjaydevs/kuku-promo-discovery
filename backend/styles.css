@@ -14,7 +14,7 @@
     --pf-muted: #a3aaa2;
     --pf-dim: #626262;
 
-    /* Green is a text accent only */
+    /* Yellow text accent */
     --pf-accent: #ffc900;
 
     --pf-border: #303030;
@@ -48,7 +48,7 @@
 }
 .block-container {
     max-width: var(--pf-content-width);
-    padding: 3.4rem 2.7rem 1.5rem !important;
+    padding: 1rem 2.7rem 1rem !important;
 }
 
 html, body, [class*="css"] {
@@ -65,7 +65,7 @@ h1, h2, h3, h4 {
 .brand-header {
     min-height: 50px;
     padding: 0.4rem 0 1.25rem;
-    margin: 0 0 3.6rem;
+    margin: -2rem 0 1.3rem;
     border-bottom: 1px solid var(--pf-border);
     display: flex;
     align-items: flex-start;
@@ -149,7 +149,9 @@ h1, h2, h3, h4 {
     letter-spacing: 0.16em !important;
     text-transform: uppercase;
 }
+[data-testid="stSelectbox"] [data-baseweb="select"],
 [data-testid="stSelectbox"] [data-baseweb="select"] > div,
+[data-testid="stSelectbox"] [data-baseweb="select"] [role="combobox"],
 [data-testid="stTextInput"] input {
     background: var(--pf-panel-strong) !important;
     color: var(--pf-text) !important;
@@ -158,6 +160,11 @@ h1, h2, h3, h4 {
     min-height: 45px;
     box-shadow: none !important;
 }
+[data-testid="stSelectbox"] [data-baseweb="select"] *,
+[data-testid="stTextInput"] input {
+    border-radius: 0 !important;
+}
+[data-testid="stSelectbox"] [data-baseweb="select"]:focus-within,
 [data-testid="stSelectbox"] [data-baseweb="select"] > div:focus-within,
 [data-testid="stTextInput"] input:focus {
     border-color: var(--pf-border-strong) !important;
@@ -423,23 +430,6 @@ hr { border-color: var(--pf-border) !important; }
     .footer-links { justify-content: flex-start; }
 }
 
-/* Reduce excessive space above the app */
-.block-container,
-[data-testid="stMainBlockContainer"] {
-    padding-top: 1rem !important;
-    padding-bottom: 1rem !important;
-}
-
-/* Tighten spacing around the app header */
-.brand-header {
-    margin-top: -2rem !important;
-    margin-bottom: 1.3rem !important;
-}
-
-/* Remove unnecessary top spacing from the first content block */
-[data-testid="stVerticalBlock"] {
-    gap: 1rem;
-}
 
 /* Move the upload button to the bottom-right corner */
 [data-testid="stFileUploaderDropzone"] {
@@ -467,4 +457,30 @@ div[data-testid="stButton"]:has(button[key="clear_results"]) button {
 div[data-testid="stButton"]:has(button[key="clear_results"]) button:hover {
     border-color: #ffc900 !important;
     color: #ffffff !important;
+}
+
+[data-testid="stMain"],
+[data-testid="stMain"]:focus,
+[data-testid="stMainBlockContainer"],
+[data-testid="stMainBlockContainer"]:focus,
+section.main {
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+/* Methodology button */
+div[data-testid="stButton"] button {
+    border-radius: 0 !important;
+}
+
+/* Streamlit dialog appearance */
+div[role="dialog"] {
+    border-radius: 0 !important;
+    border: 1px solid #484848 !important;
+    background: #0d0d0d !important;
+}
+
+div[role="dialog"] h2 {
+    color: #ffc900 !important;
+    font-family: "Archivo Black", sans-serif !important;
 }

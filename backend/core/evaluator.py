@@ -117,6 +117,137 @@ Return this exact structure:
 """
 
 
+def build_montage_evaluation_prompt(screenplay_data, candidates):
+
+    episode_context = {
+        "episode_number": screenplay_data["episode_number"],
+        "logline": screenplay_data.get("logline", ""),
+        "continuity_notes": screenplay_data.get("continuity_notes", ""),
+    }
+
+    prompt_data = {
+        "episode": episode_context,
+        "montage_candidates": candidates,
+    }
+
+    supplied_ids = [
+        candidate["candidate_id"]
+        for candidate in candidates
+    ]
+
+    return f"""
+You are an expert short-form video promo editor evaluating
+edited promotional montages for Instagram Reels, TikTok,
+and YouTube Shorts.
+
+Each candidate consists of multiple separate screenplay moments
+assembled into one promotional video.
+
+Evaluate each COMPLETE montage as a single promotional video.
+Do not evaluate its segments as independent promos.
+
+EPISODE AND MONTAGE DATA:
+{json.dumps(prompt_data, ensure_ascii=False, indent=2)}
+
+IMPORTANT CANDIDATE ID RULES:
+- The only valid candidate IDs are: {json.dumps(supplied_ids)}
+- Copy every candidate ID exactly as supplied.
+- Never create, modify, shorten, or invent candidate IDs.
+- Return exactly one evaluation for every supplied candidate.
+- Do not omit any candidate.
+
+EVALUATION INSTRUCTIONS:
+
+Read all segments in their segment_order.
+
+Consider:
+- How the opening segment attracts attention.
+- How the separate moments develop the central conflict.
+- Whether the transitions between moments create a coherent story.
+- Whether the viewer can understand the situation without
+  knowing the show.
+- Whether the final segment creates curiosity or suspense.
+
+Do not assume that the segments occur consecutively in the episode.
+They are intentionally assembled in editing order.
+
+SCORING CRITERIA:
+
+1. opening_hook (25%)
+Score how effectively the opening segment captures attention,
+particularly its first 3 seconds.
+
+2. cliffhanger (30%)
+Score how effectively the final segment creates suspense,
+emotional impact, curiosity, or a desire to watch the full episode.
+
+3. standalone_comprehension (25%)
+Score whether a viewer unfamiliar with the show can understand
+the situation, characters' immediate motivations, and conflict
+from the complete montage.
+
+4. narrative_coherence (10%)
+Score how effectively the separate segments work together
+as one coherent promotional sequence.
+
+5. promotional_appeal (10%)
+Score the overall potential of the complete montage to make
+viewers interested in watching the full episode.
+
+SCORING RULES:
+- Give each criterion an integer score from 1 to 10.
+- Evaluate the complete montage, not individual segments.
+- Consider the segments in their supplied editing order.
+- Evaluate only what is supported by the supplied screenplay.
+- Do not invent visual or narrative details.
+- A high score must be justified with specific evidence.
+- Do not calculate weighted scores. Python will calculate them.
+
+REDUNDANCY:
+
+Compare complete montage candidates with one another.
+
+Identify candidates that substantially reuse the same dramatic
+moments or reveal.
+
+Do not penalize candidates merely because they share a few seconds.
+
+Provide a short redundancy note for each candidate.
+
+OUTPUT RULES:
+- Return ONLY valid JSON.
+- Use double quotes for every JSON key and string.
+- Do not include Markdown code fences.
+- Do not include comments or trailing commas.
+- Include exactly one evaluation for every supplied candidate.
+
+Return this exact structure:
+
+{{
+  "evaluations": [
+    {{
+      "candidate_id": "EXACT_SUPPLIED_ID",
+      "scores": {{
+        "opening_hook": 8,
+        "cliffhanger": 9,
+        "standalone_comprehension": 8,
+        "narrative_coherence": 9,
+        "promotional_appeal": 8
+      }},
+      "explanations": {{
+        "opening_hook": "Reason for the score.",
+        "cliffhanger": "Reason for the score.",
+        "standalone_comprehension": "Reason for the score.",
+        "narrative_coherence": "Reason for the score.",
+        "promotional_appeal": "Reason for the score."
+      }},
+      "redundancy_note": "Comparison with other montage candidates."
+    }}
+  ]
+}}
+"""
+
+
 def parse_evaluation_response(response_text):
 
     cleaned = response_text.strip()
@@ -268,6 +399,79 @@ def evaluate_promos(
     if not isinstance(parsed_response, dict):
         raise ValueError(
             "Selected model returned an invalid evaluation structure."
+        )
+
+    evaluations = validate_evaluations(
+        parsed_response.get("evaluations"),
+        candidates
+    )
+
+    candidate_lookup = {
+        candidate["candidate_id"]: candidate
+        for candidate in candidates
+    }
+
+    results = []
+
+    for evaluation in evaluations:
+
+        candidate = candidate_lookup[
+            evaluation["candidate_id"]
+        ]
+
+        results.append({
+            **candidate,
+            "scores": evaluation["scores"],
+            "explanations": evaluation["explanations"],
+            "redundancy_note": evaluation["redundancy_note"],
+            "weighted_score": calculate_weighted_score(
+                evaluation["scores"]
+            ),
+        })
+
+    return {
+        "episode_number": screenplay_data["episode_number"],
+        "evaluations": results,
+        "raw_response": response_text,
+    }
+
+
+
+def evaluate_montage_promos(
+    screenplay_data,
+    candidates,
+    provider="gemini",
+    model=None
+):
+    """
+    Evaluate complete edited montage candidates.
+    Each montage is evaluated as one promotional video.
+    """
+
+    if not candidates:
+        return {
+            "episode_number": screenplay_data["episode_number"],
+            "evaluations": [],
+            "raw_response": None,
+        }
+
+    prompt = build_montage_evaluation_prompt(
+        screenplay_data,
+        candidates
+    )
+
+    response_text = generate_text(
+        prompt,
+        temperature=0.1,
+        provider=provider,
+        model=model
+    )
+
+    parsed_response = parse_evaluation_response(response_text)
+
+    if not isinstance(parsed_response, dict):
+        raise ValueError(
+            "Selected model returned an invalid montage evaluation structure."
         )
 
     evaluations = validate_evaluations(

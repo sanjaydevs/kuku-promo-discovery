@@ -368,3 +368,449 @@ def discover_promos(screenplay, provider="gemini", model=None):
         "rejected_candidates": rejected,
         "raw_response": raw_response
     }
+
+
+
+
+def build_montage_discovery_prompt(screenplay_data):
+    """Build a prompt for discovering edited montages."""
+
+    screenplay_json = json.dumps(
+        screenplay_data,
+        ensure_ascii=False,
+        indent=2
+    )
+
+    return f"""
+You are an expert short-form promotional video editor
+working on a serialized drama.
+
+Your task is to identify strong EDITED MONTAGE promos
+from the screenplay provided below.
+
+SCREENPLAY:
+{screenplay_json}
+
+OBJECTIVE:
+
+Find up to 10 distinct promotional montages from this episode.
+
+Each montage must combine multiple separate moments from
+the SAME episode into one coherent promotional video.
+
+Do not force 10 candidates. Return fewer if fewer genuinely
+strong montages exist.
+
+MONTAGE REQUIREMENTS:
+
+1. Each montage must contain between 2 and 5 separate segments.
+2. The TOTAL combined duration must be between 20 and 60 seconds.
+3. Calculate the duration of every segment using:
+   end timestamp minus start timestamp.
+4. Add all segment durations together before returning a candidate.
+5. Never return a montage whose combined duration is below 20 seconds.
+6. Prefer a combined duration of approximately 25–45 seconds.
+7. Individual segments should generally be 5–20 seconds long,
+   where the source material allows it.
+8. The first segment must establish a compelling opening hook.
+9. The final segment must create suspense, curiosity,
+   emotional impact or a strong cliffhanger.
+10. The montage must make sense to a viewer unfamiliar with the show.
+11. All segments must contribute to one coherent promotional idea.
+12. The editing order may differ from the original screenplay chronology.
+13. Avoid selecting overlapping source intervals.
+14. Do not repeat the same dramatic moment within a montage.
+15. Do not invent dialogue, actions, characters or events.
+16. Consider dialogue, action, camera descriptions and sound events
+    together when understanding each moment.
+17. Use original screenplay timestamps exactly.
+18. Choose segment start and end times only from timestamp
+    boundaries present in the source events or scene boundaries.
+19. Every segment must remain within the episode's duration.
+
+IMPORTANT DURATION CHECK:
+
+Before returning each candidate:
+- Calculate the duration of every segment.
+- Sum all segment durations.
+- Verify that the total is at least 20 seconds and at most 60 seconds.
+- If the total is below 20 seconds, extend suitable segments
+  using valid source timestamp boundaries.
+- Do not artificially extend a segment into unrelated content.
+- If no suitable combination reaches 20 seconds, discard
+  that montage candidate.
+
+EDITORIAL GUIDANCE:
+
+Think like an editor assembling a short promotional trailer.
+
+For example:
+- Segment 1: An intriguing statement or dramatic opening.
+- Segment 2: A separate moment that develops the conflict.
+- Segment 3: A reveal, confrontation or suspenseful moment.
+
+This is only an illustration. Do not force this exact structure.
+
+The segments must work together as one promo, not as a collection
+of unrelated dramatic moments.
+
+The viewer should understand the central situation without
+needing to watch the full episode.
+
+Do not manufacture connections between unrelated events.
+Do not misrepresent the story by changing the meaning of events.
+
+OUTPUT FORMAT:
+
+Return ONLY valid JSON. Do not use Markdown code fences.
+
+Use exactly this structure:
+
+{{
+  "episode_number": "{screenplay_data['episode_number']}",
+  "candidates": [
+    {{
+      "candidate_id": "EP1_M01",
+      "segments": [
+        {{
+          "segment_order": 1,
+          "start_timestamp": "00:10.00",
+          "end_timestamp": "00:18.00",
+          "purpose": "Opening hook",
+          "source_event_ids": [1, 2]
+        }},
+        {{
+          "segment_order": 2,
+          "start_timestamp": "00:40.00",
+          "end_timestamp": "00:50.00",
+          "purpose": "Develops the conflict",
+          "source_event_ids": [5, 6]
+        }},
+        {{
+          "segment_order": 3,
+          "start_timestamp": "01:05.00",
+          "end_timestamp": "01:15.00",
+          "purpose": "Ending cliffhanger",
+          "source_event_ids": [9, 10]
+        }}
+      ],
+      "hook": "Description of the opening hook.",
+      "cliffhanger": "Description of the ending.",
+      "why_it_works": "Explanation of why these moments work together as a promo."
+    }}
+  ]
+}}
+
+MANDATORY OUTPUT CHECKS:
+
+- Every segment must contain all five fields:
+  segment_order, start_timestamp, end_timestamp,
+  purpose and source_event_ids.
+- Segment order must start at 1 and increase sequentially.
+- Every segment must have a meaningful purpose.
+- Total duration must be 20–60 seconds.
+- source_event_ids must refer to actual screenplay event IDs.
+- Do not create one continuous timestamp range covering all segments.
+- Return an empty candidates array if no suitable montage exists.
+"""
+
+
+
+def validate_montage_candidates(candidates, screenplay_data):
+    """
+    Validate edited montage candidates without modifying
+    the existing continuous-clip validator.
+    """
+
+    valid_candidates = []
+    rejected_candidates = []
+
+    all_events = []
+
+    for scene in screenplay_data["scenes"]:
+        all_events.extend(scene["events"])
+
+    event_lookup = {
+        event["event_id"]: event
+        for event in all_events
+    }
+
+    valid_boundaries = set()
+
+    for scene in screenplay_data["scenes"]:
+
+        if scene["start_timestamp"]:
+            valid_boundaries.add(scene["start_timestamp"])
+
+        if scene["end_timestamp"]:
+            valid_boundaries.add(scene["end_timestamp"])
+
+        for event in scene["events"]:
+            if event["start_timestamp"]:
+                valid_boundaries.add(event["start_timestamp"])
+
+            if event["end_timestamp"]:
+                valid_boundaries.add(event["end_timestamp"])
+
+    scene_starts = [
+        scene["start_seconds"]
+        for scene in screenplay_data["scenes"]
+        if scene["start_seconds"] is not None
+    ]
+
+    scene_ends = [
+        scene["end_seconds"]
+        for scene in screenplay_data["scenes"]
+        if scene["end_seconds"] is not None
+    ]
+
+    for candidate in candidates:
+
+        reasons = []
+        segments = candidate.get("segments")
+
+        if not isinstance(segments, list):
+            rejected_candidates.append({
+                "candidate": candidate,
+                "reasons": ["Segments must be a list."]
+            })
+            continue
+
+        if not 2 <= len(segments) <= 5:
+            reasons.append("A montage must contain 2–5 segments.")
+
+        validated_segments = []
+        source_intervals = []
+        total_duration = 0
+
+        for index, segment in enumerate(segments):
+
+            segment_reasons = []
+
+            if not isinstance(segment, dict):
+                reasons.append(
+                    f"Segment {index + 1} must be an object."
+                )
+                continue
+
+            start = segment.get("start_timestamp")
+            end = segment.get("end_timestamp")
+
+            if (
+                not isinstance(start, str)
+                or not TIMESTAMP_PATTERN.match(start)
+            ):
+                segment_reasons.append("Invalid start timestamp.")
+
+            if (
+                not isinstance(end, str)
+                or not TIMESTAMP_PATTERN.match(end)
+            ):
+                segment_reasons.append("Invalid end timestamp.")
+
+            if segment_reasons:
+                reasons.extend(
+                    [
+                        f"Segment {index + 1}: {reason}"
+                        for reason in segment_reasons
+                    ]
+                )
+                continue
+
+            start_seconds = timestamp_to_seconds(start)
+            end_seconds = timestamp_to_seconds(end)
+            duration = end_seconds - start_seconds
+
+            if end_seconds <= start_seconds:
+                segment_reasons.append(
+                    "End must be after start."
+                )
+
+            if start not in valid_boundaries:
+                segment_reasons.append(
+                    "Start timestamp does not match a source boundary."
+                )
+
+            if end not in valid_boundaries:
+                segment_reasons.append(
+                    "End timestamp does not match a source boundary."
+                )
+
+            if scene_starts and start_seconds < min(scene_starts):
+                segment_reasons.append(
+                    "Segment starts before the episode."
+                )
+
+            if scene_ends and end_seconds > max(scene_ends):
+                segment_reasons.append(
+                    "Segment ends after the episode."
+                )
+
+            if (
+                isinstance(segment.get("segment_order"), bool)
+                or segment.get("segment_order") != index + 1
+            ):
+                segment_reasons.append(
+                    "Segment order must follow the editing sequence."
+                )
+
+            if (
+                not isinstance(segment.get("purpose"), str)
+                or not segment["purpose"].strip()
+            ):
+                segment_reasons.append(
+                    "Missing or empty segment purpose."
+                )
+
+            actual_event_ids = [
+                event["event_id"]
+                for event in all_events
+                if event["start_seconds"] is not None
+                and event["end_seconds"] is not None
+                and event["start_seconds"] < end_seconds
+                and event["end_seconds"] > start_seconds
+            ]
+
+            supplied_ids = segment.get("source_event_ids", [])
+
+            if not isinstance(supplied_ids, list):
+                segment_reasons.append(
+                    "source_event_ids must be a list."
+                )
+
+            elif any(
+                not isinstance(event_id, int)
+                or isinstance(event_id, bool)
+                or event_id not in event_lookup
+                for event_id in supplied_ids
+            ):
+                segment_reasons.append(
+                    "Unknown source event ID."
+                )
+
+            if not actual_event_ids:
+                segment_reasons.append(
+                    "Segment contains no timestamped source events."
+                )
+
+            if segment_reasons:
+                reasons.extend(
+                    [
+                        f"Segment {index + 1}: {reason}"
+                        for reason in segment_reasons
+                    ]
+                )
+                continue
+
+            total_duration += duration
+
+            source_intervals.append(
+                (start_seconds, end_seconds, index + 1)
+            )
+
+            validated_segments.append({
+                **segment,
+                "duration_seconds": round(duration, 2),
+                "source_event_ids": actual_event_ids
+            })
+
+        # Check that segments do not overlap in source time.
+        for i in range(len(source_intervals)):
+            start_a, end_a, order_a = source_intervals[i]
+
+            for j in range(i + 1, len(source_intervals)):
+                start_b, end_b, order_b = source_intervals[j]
+
+                if start_a < end_b and end_a > start_b:
+                    reasons.append(
+                        f"Segments {order_a} and {order_b} "
+                        "overlap in source time."
+                    )
+
+        if not 20 <= total_duration <= 60:
+            reasons.append(
+                f"Total montage duration is {total_duration:.2f}s; "
+                "expected 20–60s."
+            )
+
+        for field in ("hook", "cliffhanger", "why_it_works"):
+            if (
+                not isinstance(candidate.get(field), str)
+                or not candidate[field].strip()
+            ):
+                reasons.append(
+                    f"Missing or empty field: {field}."
+                )
+
+        if reasons:
+            rejected_candidates.append({
+                "candidate": candidate,
+                "reasons": reasons
+            })
+
+        else:
+            candidate["segments"] = validated_segments
+            candidate["duration_seconds"] = round(
+                total_duration,
+                2
+            )
+
+            valid_candidates.append(candidate)
+
+    return valid_candidates, rejected_candidates
+
+
+def discover_montage_promos(
+    screenplay,
+    provider="gemini",
+    model=None
+):
+    """
+    Discover edited montage promotional clips from one episode.
+    This function is independent of continuous clip discovery.
+    """
+
+    screenplay_data = format_screenplay(screenplay)
+
+    prompt = build_montage_discovery_prompt(screenplay_data)
+
+    raw_response = generate_text(
+        prompt=prompt,
+        system_instruction=(
+            "You are a precise screenplay analysis and "
+            "promotional editing assistant. Follow the requested "
+            "JSON output format and never invent source details."
+        ),
+        temperature=0.2,
+        provider=provider,
+        model=model
+    )
+
+    parsed_response = parse_json_response(raw_response)
+
+    if not isinstance(parsed_response, dict):
+        raise ValueError(
+            "Selected model response must be a JSON object."
+        )
+
+    candidates = parsed_response.get("candidates")
+
+    if not isinstance(candidates, list):
+        raise ValueError(
+            "Selected model response does not contain a valid candidates list."
+        )
+
+    if len(candidates) > 10:
+        candidates = candidates[:10]
+
+    valid, rejected = validate_montage_candidates(
+        candidates,
+        screenplay_data
+    )
+
+    return {
+        "episode_number": screenplay["episode_number"],
+        "candidates": valid,
+        "rejected_candidates": rejected,
+        "raw_response": raw_response
+    }

@@ -285,3 +285,307 @@ def rank_top_per_episode(episode_results):
         candidate["global_rank"] = index
 
     return top_candidates
+
+
+
+def calculate_montage_overlap(candidate_a, candidate_b):
+    """
+    Calculate the proportion of the shorter montage's total
+    duration that overlaps with the other montage.
+
+    Each montage can contain multiple non-contiguous segments.
+    """
+
+    segments_a = candidate_a.get("segments", [])
+    segments_b = candidate_b.get("segments", [])
+
+    total_duration_a = sum(
+        timestamp_to_seconds(segment["end_timestamp"])
+        - timestamp_to_seconds(segment["start_timestamp"])
+        for segment in segments_a
+    )
+
+    total_duration_b = sum(
+        timestamp_to_seconds(segment["end_timestamp"])
+        - timestamp_to_seconds(segment["start_timestamp"])
+        for segment in segments_b
+    )
+
+    shorter_duration = min(
+        total_duration_a,
+        total_duration_b
+    )
+
+    if shorter_duration <= 0:
+        return 0
+
+    total_overlap = 0
+
+    for segment_a in segments_a:
+        start_a = timestamp_to_seconds(
+            segment_a["start_timestamp"]
+        )
+        end_a = timestamp_to_seconds(
+            segment_a["end_timestamp"]
+        )
+
+        for segment_b in segments_b:
+            start_b = timestamp_to_seconds(
+                segment_b["start_timestamp"]
+            )
+            end_b = timestamp_to_seconds(
+                segment_b["end_timestamp"]
+            )
+
+            overlap = max(
+                0,
+                min(end_a, end_b) - max(start_a, start_b)
+            )
+
+            total_overlap += overlap
+
+    return min(
+        1.0,
+        total_overlap / shorter_duration
+    )
+
+
+def calculate_montage_selection_score(
+    candidate,
+    selected_candidates
+):
+    """
+    Adjust montage creative score based on source-segment
+    redundancy with montages already selected.
+    """
+
+    original_score = candidate["weighted_score"]
+
+    if not selected_candidates:
+        return original_score, 0
+
+    max_overlap = max(
+        calculate_montage_overlap(candidate, selected)
+        for selected in selected_candidates
+    )
+
+    redundancy_penalty = max_overlap * 2.0
+
+    adjusted_score = max(
+        0,
+        round(original_score - redundancy_penalty, 2)
+    )
+
+    return adjusted_score, round(redundancy_penalty, 2)
+
+
+def rank_montage_promos(evaluations, max_promos=None):
+    """
+    Rank montage candidates using creative quality and
+    redundancy across their source segments.
+    """
+
+    candidates = evaluations["evaluations"]
+
+    if not candidates:
+        return {
+            "episode_number": evaluations["episode_number"],
+            "ranked_candidates": [],
+        }
+
+    remaining = candidates.copy()
+    selected = []
+
+    while remaining:
+        scored_candidates = []
+
+        for candidate in remaining:
+            adjusted_score, penalty = (
+                calculate_montage_selection_score(
+                    candidate,
+                    selected
+                )
+            )
+
+            scored_candidates.append({
+                **candidate,
+                "adjusted_score": adjusted_score,
+                "redundancy_penalty": penalty,
+            })
+
+        best_candidate = max(
+            scored_candidates,
+            key=lambda item: (
+                item["adjusted_score"],
+                item["weighted_score"]
+            )
+        )
+
+        selected.append(best_candidate)
+
+        remaining = [
+            candidate
+            for candidate in remaining
+            if candidate["candidate_id"]
+            != best_candidate["candidate_id"]
+        ]
+
+        if max_promos is not None and len(selected) >= max_promos:
+            break
+
+    for index, candidate in enumerate(selected, start=1):
+        candidate["rank"] = index
+
+    return {
+        "episode_number": evaluations["episode_number"],
+        "ranked_candidates": selected,
+    }
+
+
+
+def rank_all_montages(episode_results, max_promos=None):
+    """
+    Create a global ranking across all episodes for montage candidates.
+
+    Redundancy is calculated only between montages from the same
+    episode, using their individual source segments.
+    """
+
+    candidates = []
+
+    for episode_result in episode_results:
+        if not episode_result.get("success"):
+            continue
+
+        episode_number = episode_result.get(
+            "episode_number",
+            "Unknown"
+        )
+
+        for candidate in episode_result.get(
+            "ranked_candidates", []
+        ):
+            candidate_copy = candidate.copy()
+            candidate_copy["episode_number"] = episode_number
+            candidates.append(candidate_copy)
+
+    if not candidates:
+        return []
+
+    remaining = candidates.copy()
+    selected = []
+
+    while remaining:
+        scored_candidates = []
+
+        for candidate in remaining:
+
+            same_episode_selected = [
+                item for item in selected
+                if item["episode_number"]
+                == candidate["episode_number"]
+            ]
+
+            adjusted_score, penalty = (
+                calculate_montage_selection_score(
+                    candidate,
+                    same_episode_selected
+                )
+            )
+
+            scored_candidates.append({
+                **candidate,
+                "global_score": adjusted_score,
+                "global_redundancy_penalty": penalty,
+            })
+
+        best_candidate = max(
+            scored_candidates,
+            key=lambda item: (
+                item["global_score"],
+                item["weighted_score"]
+            )
+        )
+
+        selected.append(best_candidate)
+
+        remaining = [
+            candidate for candidate in remaining
+            if not (
+                candidate["candidate_id"]
+                == best_candidate["candidate_id"]
+                and candidate["episode_number"]
+                == best_candidate["episode_number"]
+            )
+        ]
+
+        if max_promos is not None and len(selected) >= max_promos:
+            break
+
+    for index, candidate in enumerate(selected, start=1):
+        candidate["global_rank"] = index
+
+    return selected
+
+
+def rank_top_montage_per_episode(episode_results):
+    """
+    Select the highest adjusted-score montage from each episode,
+    then rank those selected montages globally.
+    """
+
+    best_by_episode = {}
+
+    for episode_result in episode_results:
+        if not episode_result.get("success"):
+            continue
+
+        episode_number = episode_result.get(
+            "episode_number",
+            "Unknown"
+        )
+
+        ranked_candidates = episode_result.get(
+            "ranked_candidates",
+            []
+        )
+
+        if not ranked_candidates:
+            continue
+
+        best_candidate = max(
+            ranked_candidates,
+            key=lambda candidate: (
+                candidate.get(
+                    "adjusted_score",
+                    candidate["weighted_score"]
+                ),
+                candidate["weighted_score"]
+            )
+        ).copy()
+
+        best_candidate["episode_number"] = episode_number
+
+        best_by_episode[episode_number] = best_candidate
+
+    top_candidates = sorted(
+        best_by_episode.values(),
+        key=lambda candidate: (
+            candidate.get(
+                "adjusted_score",
+                candidate["weighted_score"]
+            ),
+            candidate["weighted_score"]
+        ),
+        reverse=True
+    )
+
+    for index, candidate in enumerate(top_candidates, start=1):
+        candidate["global_rank"] = index
+        candidate["global_score"] = candidate.get(
+            "adjusted_score",
+            candidate["weighted_score"]
+        )
+        candidate["global_redundancy_penalty"] = 0
+
+    return top_candidates
