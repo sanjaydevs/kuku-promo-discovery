@@ -1,0 +1,424 @@
+/* =========================================================
+   PROMO FINDER — BLACK / WHITE / GREEN TYPOGRAPHY
+   Green is used for text accents only. No green fills,
+   gradients, tinted panels, or green button backgrounds.
+   ========================================================= */
+
+@import url('https://fonts.googleapis.com/css2?family=Archivo+Black&family=Barlow+Condensed:wght@600;700;800;900&family=Inter:wght@400;500;600;700;800;900&display=swap');
+
+:root {
+    --pf-bg: #080908;
+    --pf-panel: #0d0f0d;
+    --pf-panel-strong: #141614;
+    --pf-text: #f5f6f2;
+    --pf-muted: #a3aaa2;
+    --pf-dim: #626b63;
+
+    /* Green is a text accent only */
+    --pf-accent: #a7e36b;
+
+    --pf-border: #303630;
+    --pf-border-strong: #485148;
+
+    --pf-font: "Inter", Arial, sans-serif;
+    --pf-heading-font: "Archivo Black", "Arial Black", sans-serif;
+    --pf-display-font: "Barlow Condensed", Impact, sans-serif;
+
+    --pf-radius: 0px;
+    --pf-border-width: 1px;
+    --pf-content-width: 100%;
+    --pf-title-size: clamp(2rem, 3.2vw, 3.3rem);
+}
+
+.stApp {
+    background: var(--pf-bg) !important;
+    color: var(--pf-text);
+    font-family: var(--pf-font);
+}
+
+/* Keep Streamlit's top chrome from covering the site header. */
+[data-testid="stHeader"] {
+    height: 0 !important;
+    min-height: 0 !important;
+    background: transparent !important;
+}
+[data-testid="stToolbar"] {
+    top: 0.35rem;
+    right: 0.8rem;
+}
+.block-container {
+    max-width: var(--pf-content-width);
+    padding: 3.4rem 2.7rem 1.5rem !important;
+}
+
+html, body, [class*="css"] {
+    font-family: var(--pf-font);
+}
+h1, h2, h3, h4, p, label, span, div {
+    font-family: var(--pf-font);
+}
+h1, h2, h3, h4 {
+    color: var(--pf-text);
+}
+
+/* HEADER */
+.brand-header {
+    min-height: 90px;
+    padding: 0.4rem 0 1.25rem;
+    margin: 0 0 3.6rem;
+    border-bottom: 1px solid var(--pf-border);
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 2rem;
+    overflow: visible;
+}
+.brand-lockup {
+    display: flex;
+    align-items: center;
+    gap: 1.15rem;
+}
+.brand-name {
+    color: var(--pf-accent) !important;
+    font-family: var(--pf-heading-font) !important;
+    font-size: 1.65rem;
+    font-weight: 900;
+    letter-spacing: -0.055em;
+    line-height: 1.2;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+.brand-divider { display: none; }
+.brand-tagline {
+    color: var(--pf-text);
+    font-family: var(--pf-font);
+    font-size: 0.68rem;
+    line-height: 1.5;
+    font-weight: 700;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+}
+.brand-kicker {
+    color: var(--pf-muted);
+    font-size: 0.62rem;
+    letter-spacing: 0.22em;
+    padding-top: 0.25rem;
+    text-transform: uppercase;
+}
+
+/* SECTION LABELS AND HEADINGS */
+.section-kicker {
+    color: var(--pf-muted);
+    font-size: 0.66rem;
+    font-weight: 800;
+    letter-spacing: 0.22em;
+    margin: 0.1rem 0 0.8rem;
+    text-transform: uppercase;
+}
+.panel-title {
+    color: var(--pf-text);
+    font-family: var(--pf-display-font) !important;
+    font-size: var(--pf-title-size);
+    font-weight: 900;
+    line-height: 0.98;
+    letter-spacing: -0.025em;
+    text-transform: uppercase;
+    margin-bottom: 1.35rem;
+}
+.helper-copy, .upload-hint {
+    color: var(--pf-muted);
+    font-size: 0.78rem;
+    line-height: 1.6;
+    margin: 0.35rem 0 1rem;
+}
+.upload-count {
+    color: var(--pf-muted);
+    font-size: 0.78rem;
+    font-weight: 700;
+    margin: 0.7rem 0;
+}
+
+/* MODEL CONTROLS */
+[data-testid="stSelectbox"] label,
+[data-testid="stTextInput"] label,
+[data-testid="stFileUploader"] label,
+[data-testid="stRadio"] label {
+    color: var(--pf-muted) !important;
+    font-size: 0.65rem !important;
+    font-weight: 800 !important;
+    letter-spacing: 0.16em !important;
+    text-transform: uppercase;
+}
+[data-testid="stSelectbox"] [data-baseweb="select"] > div,
+[data-testid="stTextInput"] input {
+    background: var(--pf-panel-strong) !important;
+    color: var(--pf-text) !important;
+    border: 1px solid var(--pf-border-strong) !important;
+    border-radius: 0 !important;
+    min-height: 45px;
+    box-shadow: none !important;
+}
+[data-testid="stSelectbox"] [data-baseweb="select"] > div:focus-within,
+[data-testid="stTextInput"] input:focus {
+    border-color: var(--pf-border-strong) !important;
+    box-shadow: none !important;
+}
+
+/* UPLOAD — smaller, quieter, neutral */
+[data-testid="stFileUploader"] {
+    margin-top: 0.35rem;
+}
+[data-testid="stFileUploader"] section {
+    background: #0b0d0b !important;
+    border: 1px dashed var(--pf-border-strong) !important;
+    border-radius: 0 !important;
+    min-height: 118px !important;
+    padding: 0.8rem 1rem !important;
+}
+[data-testid="stFileUploader"] section,
+[data-testid="stFileUploader"] section * {
+    color: var(--pf-text) !important;
+}
+[data-testid="stFileUploader"] section small {
+    color: var(--pf-muted) !important;
+}
+[data-testid="stFileUploader"] button {
+    background: #171a17 !important;
+    color: var(--pf-text) !important;
+    border: 1px solid var(--pf-border-strong) !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+}
+[data-testid="stFileUploader"] button:hover {
+    background: #202420 !important;
+    color: var(--pf-text) !important;
+    border-color: #687168 !important;
+}
+
+/* BUTTONS — neutral fills; green never fills a component */
+.stButton > button,
+.stDownloadButton > button {
+    background: #171a17 !important;
+    color: var(--pf-text) !important;
+    border: 1px solid var(--pf-border-strong) !important;
+    border-radius: 0 !important;
+    min-height: 46px;
+    font-family: var(--pf-font);
+    font-size: 0.7rem !important;
+    font-weight: 900 !important;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    box-shadow: none !important;
+    transition: background 140ms ease, border-color 140ms ease;
+}
+.stButton > button:hover,
+.stDownloadButton > button:hover {
+    background: #202420 !important;
+    color: var(--pf-text) !important;
+    border-color: #687168 !important;
+}
+.stButton > button:disabled {
+    background: #171a17 !important;
+    color: #626b63 !important;
+    border-color: var(--pf-border) !important;
+    opacity: 1;
+}
+[data-testid="stRadio"] [role="radiogroup"] { gap: 0.5rem; }
+[data-testid="stRadio"] label {
+    letter-spacing: 0.02em !important;
+    text-transform: none;
+    font-size: 0.8rem !important;
+}
+
+/* EMPTY STATE */
+.empty-board {
+    min-height: 390px;
+    padding: 2.1rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    background: var(--pf-panel) !important;
+    border: 1px solid var(--pf-border-strong);
+    border-radius: 0;
+    box-shadow: none !important;
+}
+.empty-mark {
+    color: var(--pf-muted);
+    font-size: 2rem;
+    margin-bottom: 1rem;
+}
+.empty-board h3 {
+    color: var(--pf-text);
+    font-family: var(--pf-display-font) !important;
+    font-size: 2rem;
+    font-weight: 900;
+    line-height: 1;
+    text-transform: uppercase;
+    margin: 0 0 0.75rem;
+}
+.empty-board p {
+    max-width: 430px;
+    color: var(--pf-muted);
+    line-height: 1.7;
+    font-size: 0.86rem;
+}
+.empty-steps {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 1.25rem;
+}
+.empty-steps span {
+    color: var(--pf-accent) !important;
+    background: transparent !important;
+    border: 1px solid var(--pf-border) !important;
+    border-radius: 0 !important;
+    padding: 0.5rem 0.65rem;
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+/* METRICS */
+[data-testid="stMetric"] {
+    background: var(--pf-panel) !important;
+    border: 1px solid var(--pf-border);
+    border-radius: 0;
+    padding: 0.85rem 0.95rem;
+    box-shadow: none !important;
+}
+[data-testid="stMetricLabel"] {
+    color: var(--pf-muted) !important;
+    font-size: 0.62rem !important;
+    font-weight: 800 !important;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+}
+[data-testid="stMetricValue"] {
+    color: var(--pf-text) !important;
+    font-family: var(--pf-display-font) !important;
+    font-size: 1.8rem !important;
+    font-weight: 800;
+}
+
+/* TABLES */
+[data-testid="stDataFrame"] {
+    border: 1px solid var(--pf-border);
+    border-radius: 0;
+    overflow: hidden;
+    background: var(--pf-panel);
+}
+[data-testid="stDataFrame"] iframe { border-radius: 0; }
+
+/* SELECTED PROMO */
+.detail-heading {
+    border-top: 1px solid var(--pf-border-strong);
+    padding-top: 1rem;
+    margin: 0.7rem 0 1rem;
+}
+.detail-heading .eyebrow {
+    color: var(--pf-muted);
+    font-size: 0.62rem;
+    letter-spacing: 0.19em;
+    font-weight: 900;
+}
+.detail-heading h3 {
+    color: var(--pf-text);
+    font-family: var(--pf-display-font) !important;
+    font-size: 2rem;
+    font-weight: 900;
+    line-height: 1;
+    text-transform: uppercase;
+    margin: 0.35rem 0;
+}
+.detail-meta {
+    color: var(--pf-muted);
+    font-size: 0.76rem;
+    letter-spacing: 0.04em;
+}
+
+/* EXPANDERS / ALERTS / DIVIDERS */
+[data-testid="stExpander"] {
+    border: 1px solid var(--pf-border);
+    border-radius: 0;
+    background: var(--pf-panel) !important;
+}
+[data-testid="stExpander"] summary {
+    color: var(--pf-text);
+    font-weight: 700;
+}
+hr { border-color: var(--pf-border) !important; }
+[data-testid="stAlert"] { border-radius: 0; }
+
+/* FOOTER */
+.site-footer {
+    margin-top: 3.2rem;
+    padding: 1.25rem 0 0.8rem;
+    border-top: 1px solid var(--pf-border);
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 2rem;
+}
+.footer-name {
+    color: var(--pf-text);
+    font-family: var(--pf-heading-font) !important;
+    font-size: 1.45rem;
+    font-weight: 900;
+    letter-spacing: -0.04em;
+    text-transform: uppercase;
+}
+.footer-credit, .footer-caption {
+    color: var(--pf-dim);
+    font-size: 0.59rem;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    margin-top: 0.45rem;
+    text-transform: uppercase;
+}
+.footer-right { text-align: right; }
+.footer-links {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.65rem;
+}
+.footer-links a {
+    color: var(--pf-text);
+    background: transparent;
+    border: 1px solid var(--pf-border-strong);
+    border-radius: 0;
+    padding: 0.55rem 0.75rem;
+    font-size: 0.62rem;
+    font-weight: 800;
+    letter-spacing: 0.13em;
+    text-decoration: none;
+}
+.footer-links a:hover {
+    color: var(--pf-text);
+    border-color: #687168;
+}
+.footer-caption { margin-top: 0.7rem; }
+
+/* RESPONSIVE */
+@media (max-width: 900px) {
+    .block-container {
+        padding-left: 1.1rem !important;
+        padding-right: 1.1rem !important;
+        padding-top: 2.8rem !important;
+    }
+    .brand-header {
+        flex-direction: column;
+        min-height: auto;
+        gap: 0.75rem;
+        margin-bottom: 2rem;
+    }
+    .brand-name { font-size: 1.35rem; }
+    .panel-title { font-size: 2rem; }
+    .site-footer {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+    .footer-right { text-align: left; }
+    .footer-links { justify-content: flex-start; }
+}
