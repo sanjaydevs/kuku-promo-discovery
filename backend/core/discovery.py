@@ -371,148 +371,362 @@ def discover_promos(screenplay, provider="gemini", model=None):
 
 
 
-
 def build_montage_discovery_prompt(screenplay_data):
-    """Build a prompt for discovering edited montages."""
+    """
+    Build the discovery prompt for edited montage candidates.
 
-    screenplay_json = json.dumps(
-        screenplay_data,
-        ensure_ascii=False,
-        indent=2
+    Montages combine non-contiguous moments from the same episode
+    in a deliberate editing sequence.
+    """
+
+    screenplay_context = format_screenplay(screenplay_data)
+
+    prompt_data = {
+        "episode_number": screenplay_data["episode_number"],
+        "logline": screenplay_data.get("logline", ""),
+        "continuity_notes": screenplay_data.get("continuity_notes", ""),
+        "screenplay": screenplay_context,
+    }
+
+    episode_match = re.search(
+        r"\d+",
+        str(screenplay_data["episode_number"])
+    )
+
+    episode_id = (
+        episode_match.group()
+        if episode_match
+        else re.sub(
+            r"[^A-Za-z0-9]+",
+            "",
+            str(screenplay_data["episode_number"])
+        )
     )
 
     return f"""
-You are an expert short-form promotional video editor
-working on a serialized drama.
+You are an expert promotional video editor and trailer storyteller.
 
-Your task is to identify strong EDITED MONTAGE promos
-from the screenplay provided below.
+Your task is to identify compelling EDITED MONTAGE promotional
+videos from the supplied episode screenplay.
 
-SCREENPLAY:
-{screenplay_json}
+An edited montage is a sequence of multiple non-contiguous moments
+from the SAME episode, assembled in a deliberate editing order.
 
-OBJECTIVE:
+Unlike a continuous clip, the selected moments do not need to occur
+next to each other in the original screenplay.
 
-Find up to 10 distinct promotional montages from this episode.
+Your goal is to create engaging promotional videos that make
+viewers curious about the episode and encourage them to watch it.
 
-Each montage must combine multiple separate moments from
-the SAME episode into one coherent promotional video.
+============================================================
+1. MONTAGE REQUIREMENTS
+============================================================
 
-Do not force 10 candidates. Return fewer if fewer genuinely
-strong montages exist.
+Generate up to 10 distinct montage candidates.
 
-MONTAGE REQUIREMENTS:
+Each montage must satisfy these requirements:
 
-1. Each montage must contain between 2 and 5 separate segments.
-2. The TOTAL combined duration must be between 20 and 60 seconds.
-3. Calculate the duration of every segment using:
-   end timestamp minus start timestamp.
-4. Add all segment durations together before returning a candidate.
-5. Never return a montage whose combined duration is below 20 seconds.
-6. Prefer a combined duration of approximately 25–45 seconds.
-7. Individual segments should generally be 5–20 seconds long,
-   where the source material allows it.
-8. The first segment must establish a compelling opening hook.
-9. The final segment must create suspense, curiosity,
-   emotional impact or a strong cliffhanger.
-10. The montage must make sense to a viewer unfamiliar with the show.
-11. All segments must contribute to one coherent promotional idea.
-12. The editing order may differ from the original screenplay chronology.
-13. Avoid selecting overlapping source intervals.
-14. Do not repeat the same dramatic moment within a montage.
-15. Do not invent dialogue, actions, characters or events.
-16. Consider dialogue, action, camera descriptions and sound events
-    together when understanding each moment.
-17. Use original screenplay timestamps exactly.
-18. Choose segment start and end times only from timestamp
-    boundaries present in the source events or scene boundaries.
-19. Every segment must remain within the episode's duration.
+- Total edited duration MUST be between 20 and 60 seconds.
+- Use a minimum of 3 segments.
+- Use a maximum of 8 segments.
+- Prefer 4 to 7 segments when the source material supports them.
+- Prefer a total duration of 35 to 45 seconds when the story
+  provides enough meaningful material.
+- Do not force additional segments or unnecessary footage merely
+  to reach the preferred duration.
+- Each segment must be a continuous interval from the original
+  screenplay.
+- Segments must come from the same episode.
+- Segments must not overlap in their original source timestamps.
+- Segments may be rearranged into a different editing order.
+- Segment order must reflect the intended final video sequence.
 
-IMPORTANT DURATION CHECK:
+There is NO fixed duration requirement for an individual segment.
 
-Before returning each candidate:
-- Calculate the duration of every segment.
-- Sum all segment durations.
-- Verify that the total is at least 20 seconds and at most 60 seconds.
-- If the total is below 20 seconds, extend suitable segments
-  using valid source timestamp boundaries.
-- Do not artificially extend a segment into unrelated content.
-- If no suitable combination reaches 20 seconds, discard
-  that montage candidate.
+Choose each segment's duration based on the actual scene,
+dialogue, action, emotional reaction and narrative context.
 
-EDITORIAL GUIDANCE:
+Do not cut a moment prematurely simply to increase the number
+of segments.
 
-Think like an editor assembling a short promotional trailer.
+============================================================
+2. BUILD A COMPLETE PROMOTIONAL SEQUENCE
+============================================================
 
-For example:
-- Segment 1: An intriguing statement or dramatic opening.
-- Segment 2: A separate moment that develops the conflict.
-- Segment 3: A reveal, confrontation or suspenseful moment.
+Do not construct montages by selecting only three short moments
+that represent the beginning, middle and end of a story.
 
-This is only an illustration. Do not force this exact structure.
+Explore the screenplay for additional meaningful moments.
 
-The segments must work together as one promo, not as a collection
-of unrelated dramatic moments.
+A strong montage should ideally contain:
 
-The viewer should understand the central situation without
-needing to watch the full episode.
+- An attention-grabbing opening.
+- Sufficient context to establish the situation.
+- Escalation of conflict, tension or emotional stakes.
+- Meaningful developments, reveals or reactions.
+- A powerful final moment that creates curiosity.
 
-Do not manufacture connections between unrelated events.
-Do not misrepresent the story by changing the meaning of events.
+These are narrative functions, not mandatory separate segments.
+One segment may serve multiple functions.
 
-OUTPUT FORMAT:
+Use additional cuts when they improve pacing, reveal information,
+increase tension or create an effective emotional progression.
 
-Return ONLY valid JSON. Do not use Markdown code fences.
+Avoid selecting multiple segments that communicate essentially
+the same information.
 
-Use exactly this structure:
+============================================================
+3. DURATION AND SEGMENT SELECTION
+============================================================
+
+The preferred total duration is 35 to 45 seconds.
+
+When the screenplay contains enough meaningful material,
+use the available duration to develop the promotional sequence.
+
+Do not automatically target the minimum 20-second duration.
+
+Do not extend a montage with filler, repetitive dialogue,
+unnecessary reactions or irrelevant moments.
+
+Do not shorten a strong scene merely to fit a preferred
+number of segments.
+
+The quality of the montage takes priority over hitting
+the preferred duration or segment count.
+
+A shorter or longer valid montage is acceptable when
+the source material justifies it.
+
+============================================================
+3A. SELECT COMPLETE DRAMATIC MOMENTS
+============================================================
+
+A segment represents a COMPLETE DRAMATIC MOMENT, not merely
+a single dialogue line or isolated screenplay event.
+
+When selecting a moment, consider including:
+
+- The action or dialogue that establishes the situation.
+- The central dialogue, reveal or dramatic action.
+- The immediate reaction or consequence, when relevant.
+
+A segment may contain multiple consecutive screenplay events.
+
+Do not automatically use the start and end timestamps of a
+single event as the segment boundaries.
+
+Prefer a longer continuous interval when it captures the
+complete dramatic moment more effectively.
+
+For example, instead of selecting only a 2-second accusation,
+consider including the preceding confrontation and the
+immediate reaction if they strengthen the moment.
+
+However:
+
+- Do not include unrelated dialogue or filler.
+- Do not extend a segment merely to increase its duration.
+- Preserve the dramatic meaning of the original scene.
+- Both boundaries must still match valid screenplay timestamps.
+- Scene boundaries and event boundaries are both valid
+  timestamp boundaries.
+
+IMPORTANT:
+
+A segment can span several consecutive events within a scene.
+You are selecting footage for an edited video, not extracting
+individual dialogue lines.
+
+============================================================
+3B. PLAN THE TOTAL EDITED DURATION
+============================================================
+
+Before finalizing each montage, estimate the duration
+contributed by every selected segment.
+
+Use the following approach:
+
+1. Identify the strongest opening moment.
+2. Identify the necessary context and narrative developments.
+3. Identify the strongest final cliffhanger.
+4. Select complete source intervals for these moments.
+5. Calculate the sum of their individual durations.
+6. Ensure the total is at least 20 seconds and no more
+   than 60 seconds.
+7. Prefer 35 to 45 seconds when sufficient meaningful
+   source material exists.
+8. Add other relevant moments when they improve the
+   promotional sequence.
+
+The sum of all segment durations MUST be between
+20 and 60 seconds.
+
+Do not submit a candidate that falls below 20 seconds.
+
+Do not use artificial padding, repeated footage or
+unnecessary dialogue to meet the duration requirement.
+
+Do not confuse the difference between the earliest start
+and latest end timestamps with the actual edited duration.
+
+Only the sum of selected segment durations counts.
+
+============================================================
+4. OPENING HOOK
+============================================================
+
+The first segment must immediately capture attention.
+
+Look for:
+
+- Unexpected actions or reveals.
+- Emotionally intense moments.
+- Dramatic confrontations.
+- Intriguing dialogue.
+- Unusual or visually compelling situations.
+- Questions that make viewers want to understand what is happening.
+
+The opening should create curiosity within the first three seconds.
+
+============================================================
+5. NARRATIVE DEVELOPMENT
+============================================================
+
+Select additional moments that strengthen the story being told.
+
+Consider:
+
+- How the conflict develops.
+- What new information is revealed.
+- How characters react to events.
+- Whether emotional stakes increase.
+- Whether the sequence creates anticipation.
+- Whether each cut contributes something meaningful.
+
+The moments do not need to follow the original chronological order.
+
+However, the final edited sequence must feel intentional,
+coherent and understandable.
+
+Do not create random collections of dramatic moments.
+
+============================================================
+6. ENDING CLIFFHANGER
+============================================================
+
+The final segment must leave viewers wanting to know what happens next.
+
+Prefer:
+
+- An unresolved confrontation.
+- A shocking revelation.
+- An unexpected decision.
+- A threatening situation.
+- An emotional turning point.
+- A question or statement that creates suspense.
+
+Avoid endings that completely resolve the central conflict
+or make the viewer feel that the entire story has already been told.
+
+============================================================
+7. STANDALONE COMPREHENSION
+============================================================
+
+The montage must make sense to someone unfamiliar with the show.
+
+The viewer should understand enough about:
+
+- Who is involved.
+- What is happening.
+- Why the situation matters.
+- What is at stake.
+
+Use segment selection and editing order to establish context.
+
+Do not rely on unexplained character relationships or events
+that are never established within the selected moments.
+
+============================================================
+8. SOURCE TIMESTAMP ACCURACY
+============================================================
+
+Timestamp accuracy is critical.
+
+Use only timestamps and event boundaries present in the screenplay.
+
+For every segment:
+
+- start_timestamp must correspond to an actual source boundary.
+- end_timestamp must correspond to an actual source boundary.
+- start_timestamp must be earlier than end_timestamp.
+- Both timestamps must belong to the original episode timeline.
+- Do not invent, estimate or round timestamps.
+- Do not modify timestamps to achieve a preferred duration.
+
+Use the exact MM:SS.ss timestamp format.
+
+Total montage duration is the SUM of the individual segment
+durations, not the difference between the first segment's
+start and the final segment's end.
+
+============================================================
+9. OUTPUT REQUIREMENTS
+============================================================
+
+Return valid JSON only.
+
+Do not include Markdown fences, commentary or explanations
+outside the JSON object.
+
+Use this exact structure:
 
 {{
-  "episode_number": "{screenplay_data['episode_number']}",
-  "candidates": [
-    {{
-      "candidate_id": "EP1_M01",
-      "segments": [
+    "episode_number": "{screenplay_data['episode_number']}",
+    "candidates": [
         {{
-          "segment_order": 1,
-          "start_timestamp": "00:10.00",
-          "end_timestamp": "00:18.00",
-          "purpose": "Opening hook",
-          "source_event_ids": [1, 2]
-        }},
-        {{
-          "segment_order": 2,
-          "start_timestamp": "00:40.00",
-          "end_timestamp": "00:50.00",
-          "purpose": "Develops the conflict",
-          "source_event_ids": [5, 6]
-        }},
-        {{
-          "segment_order": 3,
-          "start_timestamp": "01:05.00",
-          "end_timestamp": "01:15.00",
-          "purpose": "Ending cliffhanger",
-          "source_event_ids": [9, 10]
+            "candidate_id": "{episode_id}_M01",
+            "segments": [
+                {{
+                    "segment_order": 1,
+                    "start_timestamp": "00:00.00",
+                    "end_timestamp": "00:08.00",
+                    "purpose": "Explain the narrative purpose of this segment.",
+                    "source_event_ids": [1, 2, 3]
+                }}
+            ],
+            "hook": "Describe the opening hook.",
+            "cliffhanger": "Describe the ending cliffhanger.",
+            "why_it_works": "Explain why the complete montage works as a promotional video."
         }}
-      ],
-      "hook": "Description of the opening hook.",
-      "cliffhanger": "Description of the ending.",
-      "why_it_works": "Explanation of why these moments work together as a promo."
-    }}
-  ]
+    ]
 }}
 
-MANDATORY OUTPUT CHECKS:
+IMPORTANT OUTPUT RULES:
 
-- Every segment must contain all five fields:
-  segment_order, start_timestamp, end_timestamp,
-  purpose and source_event_ids.
-- Segment order must start at 1 and increase sequentially.
+- Every candidate MUST have a total duration between 20 and 60 seconds.
+- Generate up to 10 candidates, not necessarily 10.
+- Every candidate must have between 3 and 8 segments.
+- Candidate IDs must follow the format {episode_id}_M01,
+  {episode_id}_M02, {episode_id}_M03, and so on.
+- Candidate IDs must be unique.
+- segment_order must start at 1 and increase sequentially.
+- Every segment must include all required fields.
 - Every segment must have a meaningful purpose.
-- Total duration must be 20–60 seconds.
-- source_event_ids must refer to actual screenplay event IDs.
-- Do not create one continuous timestamp range covering all segments.
-- Return an empty candidates array if no suitable montage exists.
+- source_event_ids must correspond to actual screenplay events
+  occurring within that segment.
+- Every candidate must include hook, cliffhanger and why_it_works.
+- Do not include calculated duration fields.
+- Do not return candidates that fail the duration requirements.
+- Do not invent dialogue, events, timestamps or source event IDs.
+
+============================================================
+SCREENPLAY DATA
+============================================================
+
+{json.dumps(prompt_data, ensure_ascii=False, indent=2)}
 """
+
 
 
 
@@ -576,8 +790,11 @@ def validate_montage_candidates(candidates, screenplay_data):
             })
             continue
 
-        if not 2 <= len(segments) <= 5:
-            reasons.append("A montage must contain 2–5 segments.")
+        if not 3 <= len(segments) <= 8:
+            reasons.append(
+                f"A montage must contain 3–8 segments; "
+                f"received {len(segments)}."
+            )
 
         validated_segments = []
         source_intervals = []

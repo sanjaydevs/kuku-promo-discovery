@@ -1,3 +1,4 @@
+
 import json
 from pathlib import Path
 
@@ -24,9 +25,9 @@ OUTPUT_FILE = OUTPUT_DIR / "latest_results.json"
 CSS_FILE = BACKEND_DIR / "styles.css"
 FAVICON_PATH = Path(__file__).parent / "favicon.png"
 
+
 # ============================================================
 # PAGE CONFIGURATION
-# Must be the first Streamlit command in this file.
 # ============================================================
 
 st.set_page_config(
@@ -43,6 +44,7 @@ st.set_page_config(
 
 def load_saved_results():
     """Load the last saved run without making any API requests."""
+
     if "pipeline_results" in st.session_state:
         return
 
@@ -63,6 +65,7 @@ def load_saved_results():
 
 def save_results(results):
     """Persist the latest run safely to the local outputs folder."""
+
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     temporary_file = OUTPUT_FILE.with_suffix(".tmp")
 
@@ -74,8 +77,10 @@ def save_results(results):
 
 def load_css():
     """Load editable visual styles from backend/styles.css."""
+
     if CSS_FILE.exists():
         css = CSS_FILE.read_text(encoding="utf-8")
+
         st.markdown(
             f"<style>{css}</style>",
             unsafe_allow_html=True,
@@ -83,14 +88,17 @@ def load_css():
 
 
 def get_successful_and_failed(results):
+
     successful = [
         result for result in results
         if result.get("success")
     ]
+
     failed = [
         result for result in results
         if not result.get("success")
     ]
+
     return successful, failed
 
 
@@ -98,18 +106,38 @@ def get_successful_and_failed(results):
 # DISPLAY HELPERS
 # ============================================================
 
+
 def render_promo_details(candidate):
-    """Display details for one selected promo."""
+    """
+    Shared renderer for Continuous Clips and Edited Montages.
+    Montage segments are displayed after all promotional details.
+    """
+
+    is_montage = bool(candidate.get("segments"))
+
+    if is_montage:
+        detail_meta = (
+            f"Episode {candidate.get('episode_number', '—')}"
+            f" &nbsp; · &nbsp; "
+            f"{len(candidate.get('segments', []))} segments"
+            f" &nbsp; · &nbsp; "
+            f"{candidate.get('duration_seconds', 0):.2f}s"
+        )
+    else:
+        detail_meta = (
+            f"Episode {candidate.get('episode_number', '—')}"
+            f" &nbsp; · &nbsp; "
+            f"{candidate.get('start_timestamp', '—')}"
+            f" – {candidate.get('end_timestamp', '—')}"
+        )
+
     st.markdown(
         f"""
         <div class="detail-heading">
             <div class="eyebrow">SELECTED PROMO</div>
             <h3>{candidate.get("candidate_id", "Promo")}</h3>
             <div class="detail-meta">
-                Episode {candidate.get("episode_number", "—")}
-                &nbsp; · &nbsp;
-                {candidate.get("start_timestamp", "—")}
-                – {candidate.get("end_timestamp", "—")}
+                {detail_meta}
             </div>
         </div>
         """,
@@ -117,10 +145,12 @@ def render_promo_details(candidate):
     )
 
     creative_score = candidate.get("weighted_score", 0)
+
     adjusted_score = candidate.get(
         "adjusted_score",
         candidate.get("global_score", 0),
     )
+
     redundancy_penalty = candidate.get(
         "global_redundancy_penalty",
         candidate.get("redundancy_penalty", 0),
@@ -128,22 +158,18 @@ def render_promo_details(candidate):
 
     metric1, metric2, metric3 = st.columns(3)
 
-    metric1.metric(
-        "Creative score",
-        f"{creative_score}/10",
-    )
-    metric2.metric(
-        "Adjusted / global score",
-        f"{adjusted_score}/10",
-    )
-    metric3.metric(
-        "Redundancy penalty",
-        f"{redundancy_penalty}",
-    )
+    metric1.metric("Creative score", f"{creative_score}/10")
+    metric2.metric("Adjusted / global score", f"{adjusted_score}/10")
+    metric3.metric("Redundancy penalty", f"{redundancy_penalty}")
+
+    # --------------------------------------------------------
+    # PROMOTIONAL DETAILS
+    # --------------------------------------------------------
 
     left_col, right_col = st.columns(2)
 
     with left_col:
+
         st.markdown("#### Opening hook")
         st.write(candidate.get("hook") or "Not available")
 
@@ -151,18 +177,26 @@ def render_promo_details(candidate):
         st.write(candidate.get("why_it_works") or "Not available")
 
     with right_col:
+
         st.markdown("#### Cliffhanger")
         st.write(candidate.get("cliffhanger") or "Not available")
 
         st.markdown("#### Redundancy assessment")
         st.write(candidate.get("redundancy_note") or "Not available")
 
+    # --------------------------------------------------------
+    # EVALUATION BREAKDOWN
+    # --------------------------------------------------------
+
     with st.expander("Evaluation scores and explanations"):
+
         scores = candidate.get("scores", {})
         explanations = candidate.get("explanations", {})
 
         score_rows = []
+
         for criterion, score in scores.items():
+
             score_rows.append({
                 "Criterion": criterion.replace("_", " ").title(),
                 "Score": score,
@@ -178,9 +212,48 @@ def render_promo_details(candidate):
         else:
             st.info("No evaluation scores are available.")
 
-    with st.expander("Additional source information"):
-        st.write("**Source event IDs**")
-        st.write(candidate.get("source_event_ids", []))
+    # --------------------------------------------------------
+    # SOURCE INFORMATION FOR CONTINUOUS CLIPS
+    # --------------------------------------------------------
+
+    if not is_montage:
+
+        with st.expander("Source event IDs"):
+            st.write(candidate.get("source_event_ids", []))
+
+    # --------------------------------------------------------
+    # MONTAGE EDITING SEQUENCE — DISPLAYED LAST
+    # --------------------------------------------------------
+
+    if is_montage:
+
+        st.divider()
+        st.markdown("#### Editing sequence")
+
+        for segment in candidate.get("segments", []):
+
+            with st.container(border=True):
+
+                st.markdown(
+                    f"**SEGMENT {segment.get('segment_order', '—')}**"
+                )
+
+                st.markdown(
+                    f"**{segment.get('start_timestamp', '—')} "
+                    f"– {segment.get('end_timestamp', '—')}**"
+                )
+
+                st.caption(
+                    f"Duration: "
+                    f"{segment.get('duration_seconds', 0):.2f}s"
+                )
+
+                st.write(
+                    segment.get("purpose", "No purpose provided.")
+                )
+
+                with st.expander("Source event IDs"):
+                    st.write(segment.get("source_event_ids", []))
 
 
 
@@ -198,6 +271,7 @@ def render_ranking_table(candidates, table_key):
         is_montage = bool(candidate.get("segments"))
 
         if is_montage:
+
             table_rows.append({
                 "Global Rank": candidate.get("global_rank", "—"),
                 "Episode": candidate.get("episode_number", "—"),
@@ -218,6 +292,7 @@ def render_ranking_table(candidates, table_key):
             })
 
         else:
+
             table_rows.append({
                 "Global Rank": candidate.get("global_rank", "—"),
                 "Episode": candidate.get("episode_number", "—"),
@@ -251,13 +326,13 @@ def render_ranking_table(candidates, table_key):
     selected_rows = selection.selection.rows
 
     if selected_rows:
+
         selected_index = selected_rows[0]
 
         if 0 <= selected_index < len(candidates):
             return candidates[selected_index]
 
     return None
-
 
 
 # ============================================================
@@ -280,7 +355,7 @@ st.markdown(
         footer {visibility: hidden;}
     </style>
     """,
-    unsafe_allow_html=True
+    unsafe_allow_html=True,
 )
 
 st.markdown(
@@ -305,9 +380,9 @@ left_panel, right_panel = st.columns(
 )
 
 
-# ------------------------------------------------------------
+# ============================================================
 # LEFT: MODEL CONFIGURATION AND UPLOAD
-# ------------------------------------------------------------
+# ============================================================
 
 with left_panel:
 
@@ -327,12 +402,12 @@ with left_panel:
         help=(
             "**Continuous Clip:** Finds one uninterrupted 20–60 second "
             "portion of an episode that works as a standalone promo.\n\n"
-            "**Edited Montage:** Combines 2–5 non-contiguous moments "
+            "**Edited Montage:** Combines non-contiguous moments "
             "from the same episode, arranged in editing order, into "
             "a 20–60 second promotional video."
         ),
     )
-    
+
     uploaded_files = st.file_uploader(
         "UPLOAD SCREENPLAY FILES",
         type=["txt"],
@@ -341,6 +416,7 @@ with left_panel:
     )
 
     if uploaded_files:
+
         st.markdown(
             f"""
             <div class="upload-count">
@@ -349,7 +425,9 @@ with left_panel:
             """,
             unsafe_allow_html=True,
         )
+
     else:
+
         st.markdown(
             """
             <div class="upload-hint">
@@ -370,6 +448,7 @@ with left_panel:
     )
 
     with provider_col:
+
         selected_provider_label = st.selectbox(
             "AI ROUTE",
             options=list(provider_options.keys()),
@@ -379,13 +458,17 @@ with left_panel:
     selected_provider = provider_options[selected_provider_label]
 
     with model_col:
+
         if selected_provider == "gemini":
+
             selected_model = st.text_input(
                 "MODEL",
                 value=GEMINI_MODEL,
                 key="gemini_model_selection",
             )
+
         else:
+
             selected_model = st.text_input(
                 "MODEL",
                 value=OPENROUTER_MODEL,
@@ -400,7 +483,7 @@ with left_panel:
         """,
         unsafe_allow_html=True,
     )
-    
+
     discover_clicked = st.button(
         "DISCOVER PROMOS",
         type="primary",
@@ -409,20 +492,28 @@ with left_panel:
     )
 
     if discover_clicked:
+
         if not selected_model.strip():
+
             st.error("Enter a model name before processing.")
+
         else:
+
             all_results = []
+
             selected_discovery_mode = st.session_state["discovery_mode"]
+
             progress_bar = st.progress(0)
             status_text = st.empty()
 
             for index, uploaded_file in enumerate(uploaded_files):
+
                 status_text.write(
                     f"Processing {uploaded_file.name}..."
                 )
 
                 try:
+
                     result = process_episodes(
                         [uploaded_file],
                         provider=selected_provider,
@@ -432,9 +523,11 @@ with left_panel:
 
                     result["provider"] = selected_provider
                     result["model"] = selected_model.strip()
+
                     all_results.append(result)
 
                 except Exception as error:
+
                     all_results.append({
                         "success": False,
                         "filename": uploaded_file.name,
@@ -448,9 +541,13 @@ with left_panel:
                 )
 
             st.session_state["pipeline_results"] = all_results
+
             st.session_state["run_provider"] = selected_provider
             st.session_state["run_model"] = selected_model.strip()
-            st.session_state["run_discovery_mode"] = selected_discovery_mode
+
+            st.session_state["run_discovery_mode"] = (
+                selected_discovery_mode
+            )
 
             for result in all_results:
                 result["discovery_mode"] = selected_discovery_mode
@@ -464,17 +561,24 @@ with left_panel:
             st.rerun()
 
 
-# ------------------------------------------------------------
+# ============================================================
 # LOAD RESULTS FOR DISPLAY
-# ------------------------------------------------------------
+# ============================================================
 
 results = st.session_state.get("pipeline_results", [])
+
 successful, failed = get_successful_and_failed(results)
 
-@st.dialog("HOW PROMO FINDER RANKS",width="large")
+
+# ============================================================
+# RANKING METHODOLOGY DIALOG
+# ============================================================
+
+@st.dialog("HOW PROMO FINDER RANKS", width="large")
 def show_ranking_methodology():
 
     st.markdown("### 1 — Creative evaluation")
+
     st.write(
         "Every promo is independently evaluated against five "
         "criteria. Each criterion receives a score from 1 to 10."
@@ -489,10 +593,13 @@ def show_ranking_methodology():
     ]
 
     for name, weight, description in criteria:
+
         col1, col2 = st.columns([0.75, 0.25])
+
         with col1:
             st.markdown(f"**{name}**")
             st.caption(description)
+
         with col2:
             st.markdown(f"**{weight}**")
 
@@ -591,25 +698,26 @@ def show_ranking_methodology():
     )
 
 
-
-# ------------------------------------------------------------
+# ============================================================
 # RIGHT: RANKING BOARD
-# ------------------------------------------------------------
+# ============================================================
 
 with right_panel:
-    
+
     title_col, methodology_col, clear_col = st.columns(
         [0.60, 0.19, 0.21],
         gap="small",
     )
 
     with title_col:
+
         st.markdown(
             '<div class="panel-title">Your promo shortlist</div>',
             unsafe_allow_html=True,
         )
 
     with methodology_col:
+
         if st.button(
             "HOW WE RANK",
             key="show_methodology",
@@ -618,11 +726,13 @@ with right_panel:
             show_ranking_methodology()
 
     with clear_col:
+
         if st.button(
             "CLEAR RESULTS",
             key="clear_results",
             use_container_width=True,
         ):
+
             st.session_state["pipeline_results"] = []
 
             keys_to_clear = [
@@ -638,7 +748,11 @@ with right_panel:
                 st.session_state.pop(key, None)
 
             for key in list(st.session_state.keys()):
+
                 if key.startswith("episode_promos_"):
+                    st.session_state.pop(key, None)
+
+                if key.startswith("montage_promos_"):
                     st.session_state.pop(key, None)
 
             if OUTPUT_FILE.exists():
@@ -646,8 +760,8 @@ with right_panel:
 
             st.rerun()
 
-
     if results:
+
         total_promos = sum(
             len(result.get("ranked_candidates", []))
             for result in successful
@@ -659,10 +773,12 @@ with right_panel:
             "EPISODES",
             len(successful),
         )
+
         metric2.metric(
             "PROMOS FOUND",
             total_promos,
         )
+
         metric3.metric(
             "FAILED",
             len(failed),
@@ -686,18 +802,24 @@ with right_panel:
         if current_mode == "Edited Montage":
 
             if ranking_mode == "All discovered promos":
+
                 global_ranking = rank_all_montages(results)
                 table_key = "global_ranking_all"
+
             else:
+
                 global_ranking = rank_top_montage_per_episode(results)
                 table_key = "global_ranking_top"
 
         else:
 
             if ranking_mode == "All discovered promos":
+
                 global_ranking = rank_all_episodes(results)
                 table_key = "global_ranking_all"
+
             else:
+
                 global_ranking = rank_top_per_episode(results)
                 table_key = "global_ranking_top"
 
@@ -713,6 +835,7 @@ with right_panel:
         )
 
     else:
+
         st.markdown(
             """
             <div class="empty-board">
@@ -733,7 +856,6 @@ with right_panel:
         )
 
 
-
 # ============================================================
 # SELECTED GLOBAL PROMO DETAILS
 # ============================================================
@@ -749,76 +871,8 @@ if selected_global_promo:
         unsafe_allow_html=True,
     )
 
-    if selected_global_promo.get("segments"):
-
-        st.markdown(
-            f"### {selected_global_promo.get('candidate_id', 'Selected Montage')}"
-        )
-
-        metric1, metric2, metric3, metric4 = st.columns(4)
-
-        metric1.metric(
-            "GLOBAL RANK",
-            selected_global_promo.get("global_rank", "—"),
-        )
-
-        metric2.metric(
-            "CREATIVE SCORE",
-            f"{selected_global_promo.get('weighted_score', 0):.2f}/10",
-        )
-
-        metric3.metric(
-            "GLOBAL SCORE",
-            f"{selected_global_promo.get('global_score', 0):.2f}/10",
-        )
-
-        metric4.metric(
-            "GLOBAL REDUNDANCY PENALTY",
-            selected_global_promo.get(
-                "global_redundancy_penalty",
-                0,
-            ),
-        )
-
-        st.caption(
-            f"Episode {selected_global_promo.get('episode_number', '—')} "
-            f"· {len(selected_global_promo.get('segments', []))} segments "
-            f"· {selected_global_promo.get('duration_seconds', 0):.2f}s"
-        )
-
-        left_col, right_col = st.columns(2)
-
-        with left_col:
-            st.markdown("#### Opening hook")
-            st.write(selected_global_promo.get("hook", "Not available"))
-
-            st.markdown("#### Why this montage works")
-            st.write(
-                selected_global_promo.get(
-                    "why_it_works",
-                    "Not available",
-                )
-            )
-
-        with right_col:
-            st.markdown("#### Ending cliffhanger")
-            st.write(
-                selected_global_promo.get(
-                    "cliffhanger",
-                    "Not available",
-                )
-            )
-
-            st.markdown("#### Redundancy assessment")
-            st.write(
-                selected_global_promo.get(
-                    "redundancy_note",
-                    "Not available",
-                )
-            )
-
-    else:
-        render_promo_details(selected_global_promo)
+    # Both continuous clips and montages use the same renderer.
+    render_promo_details(selected_global_promo)
 
 
 # ============================================================
@@ -826,6 +880,7 @@ if selected_global_promo:
 # ============================================================
 
 if successful:
+
     st.markdown(
         '<div class="panel-title">Explore individual episodes</div>',
         unsafe_allow_html=True,
@@ -835,16 +890,19 @@ if successful:
     episode_lookup = {}
 
     for index, result in enumerate(successful):
+
         episode_number = result.get(
             "episode_number",
             "Unknown",
         )
+
         filename = result.get(
             "filename",
             f"Episode {episode_number}",
         )
 
         label = f"EPISODE {episode_number} / {filename}"
+
         episode_labels.append(label)
         episode_lookup[label] = index
 
@@ -863,18 +921,16 @@ if successful:
         "Continuous Clip",
     )
 
-    # --------------------------------------------------------
+    episode_candidates = selected_episode.get(
+        "ranked_candidates",
+        [],
+    )
+
+    # ========================================================
     # EDITED MONTAGE DISPLAY
-    # --------------------------------------------------------
+    # ========================================================
 
     if episode_mode == "Edited Montage":
-
-        # Use ranked candidates so evaluation and ranking
-        # information is available in the explorer.
-        episode_candidates = selected_episode.get(
-            "ranked_candidates",
-            [],
-        )
 
         if episode_candidates:
 
@@ -885,6 +941,7 @@ if successful:
             montage_table_rows = []
 
             for candidate in episode_candidates:
+
                 montage_table_rows.append({
                     "Rank": candidate.get("rank", "—"),
                     "Candidate": candidate.get("candidate_id", "—"),
@@ -916,171 +973,34 @@ if successful:
             selected_montage_rows = montage_selection.selection.rows
 
             if selected_montage_rows:
+
                 selected_montage = episode_candidates[
                     selected_montage_rows[0]
                 ]
 
                 st.divider()
 
-                st.markdown(
-                    f"### {selected_montage.get('candidate_id', 'Selected Montage')}"
-                )
-
-                # Ranking and evaluation metrics
-                metric1, metric2, metric3, metric4 = st.columns(4)
-
-                metric1.metric(
-                    "RANK",
-                    selected_montage.get("rank", "—"),
-                )
-
-                metric2.metric(
-                    "CREATIVE SCORE",
-                    f"{selected_montage.get('weighted_score', 0):.2f}/10",
-                )
-
-                metric3.metric(
-                    "ADJUSTED SCORE",
-                    f"{selected_montage.get('adjusted_score', 0):.2f}/10",
-                )
-
-                metric4.metric(
-                    "REDUNDANCY PENALTY",
-                    selected_montage.get("redundancy_penalty", 0),
-                )
-
-                metric5, metric6 = st.columns(2)
-
-                metric5.metric(
-                    "TOTAL EDITED DURATION",
-                    f"{selected_montage.get('duration_seconds', 0):.2f}s",
-                )
-
-                metric6.metric(
-                    "NUMBER OF SEGMENTS",
-                    len(selected_montage.get("segments", [])),
-                )
-
-                # Editing sequence
-                st.markdown("#### Editing sequence")
-
-                for segment in selected_montage.get("segments", []):
-
-                    with st.container(border=True):
-
-                        st.markdown(
-                            f"**SEGMENT {segment.get('segment_order', '—')}**"
-                        )
-
-                        st.markdown(
-                            f"**{segment.get('start_timestamp', '—')} "
-                            f"– {segment.get('end_timestamp', '—')}**"
-                        )
-
-                        st.caption(
-                            f"Duration: "
-                            f"{segment.get('duration_seconds', 0):.2f}s"
-                        )
-
-                        st.write(
-                            segment.get("purpose", "No purpose provided.")
-                        )
-
-                        with st.expander("Source event IDs"):
-                            st.write(
-                                segment.get("source_event_ids", [])
-                            )
-
-                st.divider()
-
-                # Creative explanation
-                left_col, right_col = st.columns(2)
-
-                with left_col:
-                    st.markdown("#### Opening hook")
-                    st.write(
-                        selected_montage.get("hook", "Not available")
-                    )
-
-                    st.markdown("#### Why this montage works")
-                    st.write(
-                        selected_montage.get(
-                            "why_it_works",
-                            "Not available",
-                        )
-                    )
-
-                with right_col:
-                    st.markdown("#### Ending cliffhanger")
-                    st.write(
-                        selected_montage.get(
-                            "cliffhanger",
-                            "Not available",
-                        )
-                    )
-
-                    st.markdown("#### Redundancy assessment")
-                    st.write(
-                        selected_montage.get(
-                            "redundancy_note",
-                            "Not available",
-                        )
-                    )
-
-                # Evaluation breakdown
-                with st.expander("Evaluation scores and explanations"):
-                    scores = selected_montage.get("scores", {})
-                    explanations = selected_montage.get(
-                        "explanations",
-                        {},
-                    )
-
-                    score_rows = []
-
-                    for criterion, score in scores.items():
-                        score_rows.append({
-                            "Criterion": criterion.replace(
-                                "_", " "
-                            ).title(),
-                            "Score": score,
-                            "Explanation": explanations.get(
-                                criterion,
-                                "—",
-                            ),
-                        })
-
-                    if score_rows:
-                        st.dataframe(
-                            pd.DataFrame(score_rows),
-                            use_container_width=True,
-                            hide_index=True,
-                        )
-                    else:
-                        st.info(
-                            "No evaluation scores are available."
-                        )
+                # Same detail renderer used by the global shortlist.
+                render_promo_details(selected_montage)
 
         else:
+
             st.info(
                 "No ranked montages are available for this episode."
             )
 
-    # --------------------------------------------------------
+    # ========================================================
     # CONTINUOUS CLIP DISPLAY
-    # Existing display behaviour preserved.
-    # --------------------------------------------------------
+    # ========================================================
 
     else:
 
-        episode_candidates = selected_episode.get(
-            "ranked_candidates",
-            [],
-        )
-
         if episode_candidates:
+
             episode_table_rows = []
 
             for candidate in episode_candidates:
+
                 episode_table_rows.append({
                     "Rank": candidate.get("rank", "—"),
                     "Candidate": candidate.get("candidate_id", "—"),
@@ -1110,19 +1030,22 @@ if successful:
             selected_episode_rows = episode_selection.selection.rows
 
             if selected_episode_rows:
+
                 selected_episode_candidate = episode_candidates[
                     selected_episode_rows[0]
                 ]
+
                 render_promo_details(selected_episode_candidate)
 
         else:
+
             st.info(
                 "No valid promos were discovered for this episode."
             )
 
-    # --------------------------------------------------------
+    # ========================================================
     # TECHNICAL OUTPUTS
-    # --------------------------------------------------------
+    # ========================================================
 
     with st.expander("Raw LLM data and technical details"):
 
@@ -1179,10 +1102,13 @@ if successful:
 # ============================================================
 
 if failed:
+
     with st.expander(
         f"Processing issues ({len(failed)})"
     ):
+
         for result in failed:
+
             st.error(
                 f"{result.get('filename', 'Unknown episode')}: "
                 f"{result.get('error', 'Processing failed.')}"
@@ -1191,7 +1117,6 @@ if failed:
 
 # ============================================================
 # FOOTER
-# Replace the placeholder GitHub and LinkedIn URLs when ready.
 # ============================================================
 
 st.markdown(
