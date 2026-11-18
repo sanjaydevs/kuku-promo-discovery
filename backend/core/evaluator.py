@@ -391,7 +391,8 @@ def evaluate_promos(
         prompt,
         temperature=0.1,
         provider=provider,
-        model=model
+        model=model,
+        operation="evaluation"
     )
 
     parsed_response = parse_evaluation_response(response_text)
@@ -464,7 +465,8 @@ def evaluate_montage_promos(
         prompt,
         temperature=0.1,
         provider=provider,
-        model=model
+        model=model,
+        operation="evaluation"
     )
 
     parsed_response = parse_evaluation_response(response_text)

@@ -106,16 +106,18 @@ def get_successful_and_failed(results):
 # DISPLAY HELPERS
 # ============================================================
 
-
 def render_promo_details(candidate):
     """
     Shared renderer for Continuous Clips and Edited Montages.
-    Montage segments are displayed after all promotional details.
+
+    Montage candidates display their editing sequence.
+    Continuous candidates display their source timestamps.
     """
 
     is_montage = bool(candidate.get("segments"))
 
     if is_montage:
+
         detail_meta = (
             f"Episode {candidate.get('episode_number', '—')}"
             f" &nbsp; · &nbsp; "
@@ -123,7 +125,9 @@ def render_promo_details(candidate):
             f" &nbsp; · &nbsp; "
             f"{candidate.get('duration_seconds', 0):.2f}s"
         )
+
     else:
+
         detail_meta = (
             f"Episode {candidate.get('episode_number', '—')}"
             f" &nbsp; · &nbsp; "
@@ -158,76 +162,27 @@ def render_promo_details(candidate):
 
     metric1, metric2, metric3 = st.columns(3)
 
-    metric1.metric("Creative score", f"{creative_score}/10")
-    metric2.metric("Adjusted / global score", f"{adjusted_score}/10")
-    metric3.metric("Redundancy penalty", f"{redundancy_penalty}")
+    metric1.metric(
+        "Creative score",
+        f"{creative_score}/10",
+    )
+
+    metric2.metric(
+        "Adjusted / global score",
+        f"{adjusted_score}/10",
+    )
+
+    metric3.metric(
+        "Redundancy penalty",
+        f"{redundancy_penalty}",
+    )
 
     # --------------------------------------------------------
-    # PROMOTIONAL DETAILS
-    # --------------------------------------------------------
-
-    left_col, right_col = st.columns(2)
-
-    with left_col:
-
-        st.markdown("#### Opening hook")
-        st.write(candidate.get("hook") or "Not available")
-
-        st.markdown("#### Why this promo works")
-        st.write(candidate.get("why_it_works") or "Not available")
-
-    with right_col:
-
-        st.markdown("#### Cliffhanger")
-        st.write(candidate.get("cliffhanger") or "Not available")
-
-        st.markdown("#### Redundancy assessment")
-        st.write(candidate.get("redundancy_note") or "Not available")
-
-    # --------------------------------------------------------
-    # EVALUATION BREAKDOWN
-    # --------------------------------------------------------
-
-    with st.expander("Evaluation scores and explanations"):
-
-        scores = candidate.get("scores", {})
-        explanations = candidate.get("explanations", {})
-
-        score_rows = []
-
-        for criterion, score in scores.items():
-
-            score_rows.append({
-                "Criterion": criterion.replace("_", " ").title(),
-                "Score": score,
-                "Explanation": explanations.get(criterion, "—"),
-            })
-
-        if score_rows:
-            st.dataframe(
-                pd.DataFrame(score_rows),
-                use_container_width=True,
-                hide_index=True,
-            )
-        else:
-            st.info("No evaluation scores are available.")
-
-    # --------------------------------------------------------
-    # SOURCE INFORMATION FOR CONTINUOUS CLIPS
-    # --------------------------------------------------------
-
-    if not is_montage:
-
-        with st.expander("Source event IDs"):
-            st.write(candidate.get("source_event_ids", []))
-
-    # --------------------------------------------------------
-    # MONTAGE EDITING SEQUENCE — DISPLAYED LAST
+    # MONTAGE EDITING SEQUENCE
     # --------------------------------------------------------
 
     if is_montage:
 
-        st.divider()
         st.markdown("#### Editing sequence")
 
         for segment in candidate.get("segments", []):
@@ -249,12 +204,90 @@ def render_promo_details(candidate):
                 )
 
                 st.write(
-                    segment.get("purpose", "No purpose provided.")
+                    segment.get(
+                        "purpose",
+                        "No purpose provided.",
+                    )
                 )
 
                 with st.expander("Source event IDs"):
-                    st.write(segment.get("source_event_ids", []))
+                    st.write(
+                        segment.get("source_event_ids", [])
+                    )
 
+    # --------------------------------------------------------
+    # PROMOTIONAL EXPLANATION
+    # --------------------------------------------------------
+
+    left_col, right_col = st.columns(2)
+
+    with left_col:
+
+        st.markdown("#### Opening hook")
+        st.write(
+            candidate.get("hook") or "Not available"
+        )
+
+        if is_montage:
+            st.markdown("#### Why this montage works")
+        else:
+            st.markdown("#### Why this promo works")
+
+        st.write(
+            candidate.get("why_it_works") or "Not available"
+        )
+
+    with right_col:
+
+        st.markdown("#### Cliffhanger")
+        st.write(
+            candidate.get("cliffhanger") or "Not available"
+        )
+
+        st.markdown("#### Redundancy assessment")
+        st.write(
+            candidate.get("redundancy_note") or "Not available"
+        )
+
+    # --------------------------------------------------------
+    # EVALUATION BREAKDOWN
+    # --------------------------------------------------------
+
+    with st.expander("Evaluation scores and explanations"):
+
+        scores = candidate.get("scores", {})
+        explanations = candidate.get("explanations", {})
+
+        score_rows = []
+
+        for criterion, score in scores.items():
+
+            score_rows.append({
+                "Criterion": criterion.replace("_", " ").title(),
+                "Score": score,
+                "Explanation": explanations.get(criterion, "—"),
+            })
+
+        if score_rows:
+
+            st.dataframe(
+                pd.DataFrame(score_rows),
+                use_container_width=True,
+                hide_index=True,
+            )
+
+        else:
+            st.info("No evaluation scores are available.")
+
+    # Continuous clips retain their source event information.
+    if not is_montage:
+
+        with st.expander("Additional source information"):
+
+            st.write("**Source event IDs**")
+            st.write(
+                candidate.get("source_event_ids", [])
+            )
 
 
 def render_ranking_table(candidates, table_key):

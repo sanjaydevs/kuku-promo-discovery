@@ -124,13 +124,13 @@ def parse_screenplay(text, filename="unknown.txt"):
             continue
 
         # Scene metadata
-        if stripped.startswith("Scene heading:"):
+        if stripped.upper().startswith("SCENE HEADING:"):
             current_scene["heading"] = (
                 stripped.split(":", 1)[1].strip()
             )
             continue
 
-        if stripped.startswith("Scene start:"):
+        if stripped.upper().startswith("SCENE START:"):
             timestamp = stripped.split(":", 1)[1].strip()
 
             current_scene["start_timestamp"] = timestamp
@@ -139,7 +139,7 @@ def parse_screenplay(text, filename="unknown.txt"):
             )
             continue
 
-        if stripped.startswith("Scene end:"):
+        if stripped.upper().startswith("SCENE END:"):
             timestamp = stripped.split(":", 1)[1].strip()
 
             current_scene["end_timestamp"] = timestamp

@@ -1,4 +1,9 @@
 
+import csv
+from datetime import datetime, timezone
+from pathlib import Path
+from uuid import uuid4
+
 from openai import OpenAI
 from google import genai
 from google.genai import types
@@ -11,13 +16,83 @@ from config import (
 )
 
 
+# ============================================================
+# USAGE LOGGING
+# ============================================================
+
+BACKEND_DIR = Path(__file__).resolve().parents[1]
+
+USAGE_DIR = BACKEND_DIR / "data" / "usage"
+USAGE_FILE = USAGE_DIR / "llm_usage.csv"
+
+USAGE_FIELDS = [
+    "request_id",
+    "timestamp",
+    "provider",
+    "model",
+    "operation",
+    "attempt",
+    "input_tokens",
+    "output_tokens",
+    "total_tokens",
+]
+
+
+def save_usage(
+    provider,
+    model,
+    operation,
+    attempt,
+    input_tokens,
+    output_tokens,
+    total_tokens
+):
+    """Append individual API request usage to a CSV file."""
+
+    USAGE_DIR.mkdir(parents=True, exist_ok=True)
+
+    file_exists = USAGE_FILE.exists()
+
+    with USAGE_FILE.open(
+        "a",
+        newline="",
+        encoding="utf-8"
+    ) as file:
+
+        writer = csv.DictWriter(
+            file,
+            fieldnames=USAGE_FIELDS
+        )
+
+        if not file_exists:
+            writer.writeheader()
+
+        writer.writerow({
+            "request_id": str(uuid4()),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "provider": provider,
+            "model": model,
+            "operation": operation,
+            "attempt": attempt,
+            "input_tokens": input_tokens,
+            "output_tokens": output_tokens,
+            "total_tokens": total_tokens,
+        })
+
+
+# ============================================================
+# LLM GENERATION
+# ============================================================
+
 def generate_text(
     prompt,
     system_instruction=None,
     temperature=0.2,
     provider="gemini",
-    model=None
+    model=None,
+    operation="unspecified"
 ):
+
     if provider == "gemini":
 
         client = genai.Client(
@@ -33,10 +108,26 @@ def generate_text(
                 system_instruction=system_instruction
             )
         )
-        
-        print("GEMINI ACTUAL MODEL:", response.model_version)
 
+        actual_model = response.model_version
         content = response.text
+
+        usage = response.usage_metadata
+
+        if usage:
+
+            save_usage(
+                provider="gemini",
+                model=actual_model,
+                operation=operation,
+                attempt=1,
+                input_tokens=usage.prompt_token_count,
+                output_tokens=usage.candidates_token_count,
+                total_tokens=usage.total_token_count
+            )
+
+        else:
+            print("Gemini usage metadata unavailable.")
 
     elif provider == "openrouter":
 
@@ -64,8 +155,8 @@ def generate_text(
 
         content = None
 
-        # Retry once if OpenRouter returns an empty response.
         for attempt in range(2):
+
             response = client.chat.completions.create(
                 model=model or OPENROUTER_MODEL,
                 messages=messages,
@@ -75,9 +166,20 @@ def generate_text(
 
             choice = response.choices[0] if response.choices else None
 
-            print("OPENROUTER MODEL:", response.model)
-            print("FINISH REASON:", choice.finish_reason if choice else None)
-            print("USAGE:", response.usage)
+            actual_model = response.model
+            usage = response.usage
+
+            if usage:
+
+                save_usage(
+                    provider="openrouter",
+                    model=actual_model,
+                    operation=operation,
+                    attempt=attempt + 1,
+                    input_tokens=usage.prompt_tokens,
+                    output_tokens=usage.completion_tokens,
+                    total_tokens=usage.total_tokens
+                )
 
             content = (
                 choice.message.content
@@ -88,15 +190,17 @@ def generate_text(
             if content and content.strip():
                 break
 
-            print(f"OpenRouter returned empty content. Attempt {attempt + 1}/2")
+            print(
+                f"OpenRouter returned empty content. "
+                f"Attempt {attempt + 1}/2"
+            )
 
             if attempt == 0:
                 time.sleep(2)
 
         if not content or not content.strip():
             raise RuntimeError(
-                "OpenRouter returned empty content after 2 attempts. "
-                "Check deployment logs for model and finish reason."
+                "OpenRouter returned empty content after 2 attempts."
             )
 
     else:

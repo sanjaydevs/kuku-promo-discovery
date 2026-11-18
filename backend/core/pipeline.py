@@ -1,3 +1,4 @@
+
 from core.parser import extract_screenplay
 from core.validator import validate_screenplay
 from core.discovery import (
@@ -12,8 +13,6 @@ from core.ranker import (
     rank_promos,
     rank_montage_promos,
 )
-
-
 
 
 def process_episode(
@@ -61,8 +60,9 @@ def process_episode(
             model=model
         )
 
-    candidates = discovery_result["candidates"]
+    candidates = discovery_result.get("candidates", [])
 
+    # No candidates: skip evaluation and ranking
     if not candidates:
         return {
             "success": True,
@@ -78,8 +78,9 @@ def process_episode(
             },
         }
 
-    # Step 4: Evaluate candidates
+    # Step 4 and 5: Evaluate and rank montage candidates
     if discovery_mode == "Edited Montage":
+
         evaluation_result = evaluate_montage_promos(
             screenplay_data=discovery_result,
             candidates=candidates,
@@ -87,36 +88,26 @@ def process_episode(
             model=model
         )
 
-        # Step 5: Rank montage candidates
         ranking_result = rank_montage_promos(
             evaluation_result
         )
 
-        return {
-            "success": True,
-            "episode_number": screenplay["episode_number"],
-            "discovery_mode": discovery_mode,
-            "validation": validation_result,
-            "candidates": candidates,
-            "evaluations": evaluation_result["evaluations"],
-            "ranked_candidates": ranking_result["ranked_candidates"],
-            "raw_outputs": {
-                "discovery": discovery_result.get("raw_response"),
-                "evaluation": evaluation_result.get("raw_response"),
-            },
-        }
+    else:
 
-    # Existing continuous-clip evaluation
-    evaluation_result = evaluate_promos(
-        screenplay_data=discovery_result,
-        candidates=candidates,
-        provider=provider,
-        model=model
-    )
+        # Step 4: Evaluate continuous-clip candidates
+        evaluation_result = evaluate_promos(
+            screenplay_data=discovery_result,
+            candidates=candidates,
+            provider=provider,
+            model=model
+        )
 
-    # Existing continuous-clip ranking
-    ranking_result = rank_promos(evaluation_result)
+        # Step 5: Rank continuous-clip candidates
+        ranking_result = rank_promos(
+            evaluation_result
+        )
 
+    # Step 6: Return complete results
     return {
         "success": True,
         "episode_number": screenplay["episode_number"],
@@ -130,6 +121,7 @@ def process_episode(
             "evaluation": evaluation_result.get("raw_response"),
         },
     }
+
 
 def process_episodes(
     uploaded_files,
@@ -146,7 +138,11 @@ def process_episodes(
 
     for uploaded_file in uploaded_files:
 
-        filename = getattr(uploaded_file, "name", str(uploaded_file))
+        filename = getattr(
+            uploaded_file,
+            "name",
+            str(uploaded_file)
+        )
 
         try:
             result = process_episode(
@@ -164,6 +160,7 @@ def process_episodes(
             results.append(result)
 
         except Exception as error:
+
             results.append({
                 "success": False,
                 "filename": filename,

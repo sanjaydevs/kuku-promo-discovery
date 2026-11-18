@@ -337,7 +337,8 @@ def discover_promos(screenplay, provider="gemini", model=None):
         ),
         temperature=0.2,
         provider=provider,
-        model=model
+        model=model,
+        operation="discovery"
     )
 
     parsed_response = parse_json_response(raw_response)
@@ -1000,7 +1001,8 @@ def discover_montage_promos(
         ),
         temperature=0.2,
         provider=provider,
-        model=model
+        model=model,
+        operation="discovery"
     )
 
     parsed_response = parse_json_response(raw_response)
